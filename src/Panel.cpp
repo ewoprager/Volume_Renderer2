@@ -275,27 +275,24 @@ std::shared_ptr<EVK::Interface> Panel::ConstructVkInterface(){
 		.primitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
 	};
 	
-	EVK::InterfaceBlueprint nvi = {*vkDevices};
+	EVK::InterfaceBlueprint nvi {*vkDevices};
 	
-	nvi.graphicsPipelineBlueprints = {pbMain};
-	
-	nvi.computePipelineBlueprints = {};
-	
-	nvi.uboBlueprints = {};
-	
-	nvi.sboBlueprints = {};
-	
+	nvi.graphicsPipelinesN = 1;
+	nvi.computePipelinesN = 0;
+	nvi.uniformBufferObjectsN = 0;
+	nvi.storageBufferObjectsN = 0;
 	nvi.samplerBlueprints = {};
-	
-	nvi.layeredBufferedRenderPassBlueprints = {};
-	
-	nvi.bufferedRenderPassBlueprints = {};
-	
+	nvi.layeredBufferedRenderPassesN = 0;
+	nvi.bufferedRenderPassesN = 0;
 	nvi.vertexBuffersN = 1;
 	nvi.indexBuffersN = 1;
-	nvi.imageBlueprintPtrs = {};
+	nvi.imagesN = 0;
 	
-	return std::make_shared<EVK::Interface>(nvi);
+	std::shared_ptr<EVK::Interface> ret = std::make_shared<EVK::Interface>(nvi);
+	
+	ret->BuildGraphicsPipeline(0, pbMain);
+	
+	return ret;
 }
 
 std::vector<const char*> Panel::GetRequiredExtensions() {

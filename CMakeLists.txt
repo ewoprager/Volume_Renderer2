@@ -39,6 +39,7 @@ endfunction(add_shader)
 # Find SDL2 and OpenGL
 find_package(wxWidgets REQUIRED COMPONENTS net core base gl)
 find_package(OpenGL REQUIRED)
+find_package(DCMTK REQUIRED)
 
 if(APPLE)
 	if(DEFINED ENV_WX_CONFIG)
@@ -143,6 +144,7 @@ target_link_libraries(${PROJECT_NAME}
 	evk
 	${OPENGL_LIBRARIES}
 	${wxWidgets_LIBRARIES}
+	${DCMTK_LIBRARIES}
 )
 
 if(UNIX AND NOT APPLE)

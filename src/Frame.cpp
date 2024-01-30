@@ -2,6 +2,8 @@
 #include <wx/log.h>
 
 #include "App.h"
+#include "Data.h"
+
 #include "Frame.h"
 
 BEGIN_EVENT_TABLE(Frame, wxFrame)
@@ -19,9 +21,12 @@ Frame::Frame(wxWindow *parent, const wxString &title, const wxPoint &pos, const 
     wxMenu *fileMenu = new wxMenu;
     fileMenu->Append(wxID_ABOUT, "&About");
     fileMenu->Append(wxID_EXIT, "&Quit");
+	wxMenuItem *openXrayItem = fileMenu->Append(wxID_ANY, "&Open X-Ray");
+		
     wxMenuBar *menuBar = new wxMenuBar;
     menuBar->Append(fileMenu, "&File");
     SetMenuBar(menuBar);
+		
     wxStatusBar *statusBar = CreateStatusBar(2);
     int widths[2] = {-2, -1};
     statusBar->SetStatusWidths(2, widths);
@@ -114,6 +119,7 @@ Frame::Frame(wxWindow *parent, const wxString &title, const wxPoint &pos, const 
     //construct_yz_reslice();
 
     Bind(wxEVT_PAINT, &Frame::OnCreate, this);
+	Bind(wxEVT_MENU, &Frame::OnOpenXray, this, openXrayItem->GetId());
 }
 
 
@@ -170,6 +176,24 @@ void Frame::OnCreate(wxPaintEvent &event) {
 
 void Frame::Idle(){
 	panel->DrawFrame();
+}
+
+void Frame::OnOpenXray(wxCommandEvent &event){
+	wxFileDialog openFileDialog{this, _("Open an X-Ray DICOM file"), "", "", "DICOM files (*.dcm)|*.dcm", wxFD_OPEN | wxFD_FILE_MUST_EXIST};
+	
+	if (openFileDialog.ShowModal() == wxID_CANCEL)
+		return;
+	
+	ReadXRay(openFileDialog.GetPath());
+	
+	// proceed loading the file chosen by the user;
+	// this can be done with e.g. wxWidgets input streams:
+//	wxFileInputStream input_stream(openFileDialog.GetPath());
+//	if (!input_stream.IsOk())
+//	{
+//		wxLogError("Cannot open file '%s'.", openFileDialog.GetPath());
+//		return;
+//	}
 }
 
 void Frame::OnClose(wxCloseEvent& event)

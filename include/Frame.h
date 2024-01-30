@@ -36,6 +36,7 @@ private:
     void OnClose(wxCloseEvent &event);
     void OnQuit(wxCommandEvent &event);
     void OnAbout(wxCommandEvent &event);
+	void OnOpenXray(wxCommandEvent &event);
 //    void OnVASlider(wxScrollEvent& event);
 //    void OnSlice(wxCommandEvent& event);
 	
