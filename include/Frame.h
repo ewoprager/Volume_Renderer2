@@ -4,6 +4,7 @@
 #include "wx/wxprec.h"
 
 #include "Panel.h"
+#include "Data.h"
 
 class Frame : public wxFrame {
 public:
@@ -21,6 +22,8 @@ public:
 //    wxBoxSizer *canvas_v2_sizer;
 private:
 	std::shared_ptr<Panel> panel;
+	
+	std::optional<Data::DICOM::XRay> xRay;
 	
     //void OnResize(wxSizeEvent& event);
     void OnCreate(wxPaintEvent &event);//(wxWindowCreateEvent& event);//(wxPaintEvent& event);

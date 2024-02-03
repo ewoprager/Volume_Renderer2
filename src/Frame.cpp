@@ -2,7 +2,6 @@
 #include <wx/log.h>
 
 #include "App.h"
-#include "Data.h"
 
 #include "Frame.h"
 
@@ -184,16 +183,12 @@ void Frame::OnOpenXray(wxCommandEvent &event){
 	if (openFileDialog.ShowModal() == wxID_CANCEL)
 		return;
 	
-	ReadXRay(openFileDialog.GetPath());
-	
-	// proceed loading the file chosen by the user;
-	// this can be done with e.g. wxWidgets input streams:
-//	wxFileInputStream input_stream(openFileDialog.GetPath());
-//	if (!input_stream.IsOk())
-//	{
-//		wxLogError("Cannot open file '%s'.", openFileDialog.GetPath());
-//		return;
-//	}
+	xRay = Data::DICOM::LoadXRay(openFileDialog.GetPath());
+	if(xRay){
+		std::cout << "XRay loaded!\nSize = [" << xRay->size.x << " x " << xRay->size.y << "]\nPixel spacing = " << xRay->pixelSpacing << "\nSource distance = " << xRay->sourceDistance << "\nImage depth = " << xRay->imageDepth << "\n";
+		
+		panel->LoadXRay(xRay.value());
+	}
 }
 
 void Frame::OnClose(wxCloseEvent& event)

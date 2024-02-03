@@ -5,15 +5,21 @@
 
 #include "guistructs.h"
 
+#include "Data.h"
+
 class Panel : wxPanel {
 public:
 	Panel(wxWindow *pParent, wxWindowID id = wxID_ANY, const wxPoint &pos = wxDefaultPosition, const wxSize &size = wxDefaultSize, long style = 0, const wxString &name = "PanelName");
 	
 	void DrawFrame();
 	
+	void LoadXRay(Data::DICOM::XRay xRay);
+	
 private:
 	std::shared_ptr<EVK::Devices> vkDevices {};
 	std::shared_ptr<EVK::Interface> vkInterface {};
+	
+	bool xRayLoaded = false;
 	
 	void OnPaint(wxPaintEvent &event);
 	void OnResize(wxSizeEvent &event);

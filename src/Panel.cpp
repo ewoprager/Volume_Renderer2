@@ -33,34 +33,47 @@
 #endif
 #endif
 
+#include <mattresses.h>
+
 #include "Panel.h"
 
-static const VkPipelineVertexInputStateCreateInfo vertexInfo = {
-	VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-	nullptr,
-	NULL,
-	1,
-	(VkVertexInputBindingDescription[1]){
-		{
-			0, // binding
-			8,//sizeof(Vertex), // stride
-			VK_VERTEX_INPUT_RATE_VERTEX // input rate
+struct Vertex {
+	vec<2> position;
+	vec<2> texCoord;
+	
+	constexpr static const VkPipelineVertexInputStateCreateInfo attributeInfo = {
+		VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+		nullptr,
+		NULL,
+		1,
+		(VkVertexInputBindingDescription[1]){
+			{
+				0, // binding
+				16, // stride
+				VK_VERTEX_INPUT_RATE_VERTEX // input rate
+			}
+		},
+		2,
+		(VkVertexInputAttributeDescription[2]){
+			{
+				0, 0, VK_FORMAT_R32G32_SFLOAT, 0
+			},
+			{
+				1, 0, VK_FORMAT_R32G32_SFLOAT, 8
+			}
 		}
-	},
-	1,
-	(VkVertexInputAttributeDescription[1]){
-		{
-			0, 0, VK_FORMAT_R32G32_SFLOAT, 0//offsetof(Vertex, position)
-		}
-	}
+	};
 };
 
-static const float32_t triangleVertices[6] = {
-	1.0f, 1.0f,
-	-1.0f, 1.0f,
-	0.0f, -1.0f
+static constexpr uint32_t verticesN = 4;
+static const Vertex triangleVertices[verticesN] = {
+	{{ 1.0f,-1.0f}, { 1.0f, 1.0f}},
+	{{ 1.0f, 1.0f}, { 1.0f, 0.0f}},
+	{{-1.0f, 1.0f}, { 0.0f, 0.0f}},
+	{{-1.0f,-1.0f}, { 0.0f, 1.0f}}
 };
-static uint32_t triangleIndices[3] = {0, 1, 2};
+static constexpr uint32_t indicesN = 6;
+static uint32_t triangleIndices[indicesN] = {0, 1, 2, 0, 2, 3};
 
 BEGIN_EVENT_TABLE(Panel, wxPanel)
 //EVT_MOUSE_EVENTS(VulkanCanvas::OnMouse)
@@ -81,7 +94,7 @@ Panel::Panel(wxWindow *pParent, wxWindowID id, const wxPoint &pos, const wxSize 
 	vkInterface = ConstructVkInterface();
 	
 	vkInterface->FillVertexBuffer(0, (void *)triangleVertices, sizeof(triangleVertices));
-	vkInterface->FillIndexBuffer(0, triangleIndices, 3);
+	vkInterface->FillIndexBuffer(0, triangleIndices, indicesN);
 }
 
 void Panel::OnPaint(wxPaintEvent &event){
@@ -104,13 +117,30 @@ void Panel::DrawFrame(){
 		
 		vkInterface->BeginFinalRenderPass({{0.0f, 0.0f, 0.0f, 1.0f}});
 		
-		vkInterface->GP(0).Bind();
-		vkInterface->CmdBindVertexBuffer(0, 0);
-		vkInterface->CmdBindIndexBuffer(0, VK_INDEX_TYPE_UINT32);
-		vkInterface->CmdDrawIndexed(3);
+		if(xRayLoaded){
+			vkInterface->GP(0).Bind();
+			vkInterface->GP(0).BindDescriptorSets(0, 1);
+			vkInterface->CmdBindVertexBuffer(0, 0);
+			vkInterface->CmdBindIndexBuffer(0, VK_INDEX_TYPE_UINT32);
+			vkInterface->CmdDrawIndexed(indicesN);
+		}
 		
 		vkInterface->EndFinalRenderPassAndFrame();
 	}
+}
+
+void Panel::LoadXRay(Data::DICOM::XRay xRay){
+	vkInterface->BuildDataImage(0, (EVK::DataImageBlueprint){
+		.data = xRay.data.data(),
+		xRay.size.x,
+		xRay.size.y,
+		uint32_t(xRay.imageDepth * xRay.size.x),
+		VK_FORMAT_R16_UNORM,
+		false
+	});
+	vkInterface->GP(0).UpdateDescriptorSets();
+	xRayLoaded = true;
+	DrawFrame();
 }
 
 std::shared_ptr<EVK::Devices> Panel::ConstructVkDevices(){
@@ -246,6 +276,16 @@ std::shared_ptr<EVK::Interface> Panel::ConstructVkInterface(){
 		}
 	};
 	
+	EVK::DescriptorSetBlueprint ds0 = {
+		(EVK::DescriptorBlueprint){
+			.type = EVK::DescriptorType::combinedImageSampler,
+			.binding = 0,
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+			.indicesExtra = {0}, // index of XRay image
+			.indicesExtra2 = {0}, // index of main sampler
+		}
+	};
+	
 	std::vector<VkPipelineShaderStageCreateInfo> mainShaderStages = shaderStages;
 	mainShaderStages[0].module = vkDevices->CreateShaderModule("main.vert.spv");
 	mainShaderStages[1].module = vkDevices->CreateShaderModule("main.frag.spv");
@@ -260,10 +300,10 @@ std::shared_ptr<EVK::Interface> Panel::ConstructVkInterface(){
 	rasterizer.cullMode = VK_CULL_MODE_NONE;//VK_CULL_MODE_BACK_BIT;
 	rasterizer.depthBiasEnable = VK_FALSE;
 	EVK::GraphicsPipelineBlueprint pbMain = {
-		.pipelineBlueprint.descriptorSetBlueprints = {},
+		.pipelineBlueprint.descriptorSetBlueprints = {ds0},
 		.pipelineBlueprint.pushConstantRanges = {},
 		.shaderStageCIs = mainShaderStages,
-		.vertexInputStateCI = vertexInfo,
+		.vertexInputStateCI = Vertex::attributeInfo,
 //		.vertexInputStateCI = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, 0, 0, nullptr, 0, nullptr},
 		.rasterisationStateCI = rasterizer,
 		.multisampleStateCI = multisampling,
@@ -281,12 +321,32 @@ std::shared_ptr<EVK::Interface> Panel::ConstructVkInterface(){
 	nvi.computePipelinesN = 0;
 	nvi.uniformBufferObjectsN = 0;
 	nvi.storageBufferObjectsN = 0;
-	nvi.samplerBlueprints = {};
+	
+	VkSamplerCreateInfo samplerInfo{
+		.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+		.magFilter = VK_FILTER_LINEAR,
+		.minFilter = VK_FILTER_LINEAR,
+		.addressModeU = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+		.addressModeV = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+		.addressModeW = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+		.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+		.anisotropyEnable = VK_TRUE,
+		.maxAnisotropy = vkDevices->GetPhysicalDeviceProperties().limits.maxSamplerAnisotropy,
+		.unnormalizedCoordinates = VK_FALSE, // 'VK_TRUE' would mean texture coordinates are (0, texWidth), (0, texHeight)
+		.compareEnable = VK_FALSE,
+		.compareOp = VK_COMPARE_OP_ALWAYS,
+		.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+		.mipLodBias = 0.0f, // Optional
+		.minLod = 0.0f, // Optional
+		.maxLod = 20.0f // max level of detail (miplevels)
+	};
+	nvi.samplerBlueprints = {samplerInfo};
+	
 	nvi.layeredBufferedRenderPassesN = 0;
 	nvi.bufferedRenderPassesN = 0;
 	nvi.vertexBuffersN = 1;
 	nvi.indexBuffersN = 1;
-	nvi.imagesN = 0;
+	nvi.imagesN = 1;
 	
 	std::shared_ptr<EVK::Interface> ret = std::make_shared<EVK::Interface>(nvi);
 	
