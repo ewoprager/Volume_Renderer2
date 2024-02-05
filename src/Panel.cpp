@@ -67,10 +67,10 @@ struct Vertex {
 
 static constexpr uint32_t verticesN = 4;
 static const Vertex triangleVertices[verticesN] = {
-	{{ 1.0f,-1.0f}, { 1.0f, 1.0f}},
-	{{ 1.0f, 1.0f}, { 1.0f, 0.0f}},
-	{{-1.0f, 1.0f}, { 0.0f, 0.0f}},
-	{{-1.0f,-1.0f}, { 0.0f, 1.0f}}
+	{{ 1.0f,-1.0f}, { 1.0f, 0.0f}},
+	{{ 1.0f, 1.0f}, { 1.0f, 1.0f}},
+	{{-1.0f, 1.0f}, { 0.0f, 1.0f}},
+	{{-1.0f,-1.0f}, { 0.0f, 0.0f}}
 };
 static constexpr uint32_t indicesN = 6;
 static uint32_t triangleIndices[indicesN] = {0, 1, 2, 0, 2, 3};
@@ -88,6 +88,7 @@ Panel::Panel(wxWindow *pParent, wxWindowID id, const wxPoint &pos, const wxSize 
 	Bind(wxEVT_PAINT, &Panel::OnPaint, this);
 	Bind(wxEVT_SIZE, &Panel::OnResize, this);
 	Bind(wxEVT_ERASE_BACKGROUND, &Panel::OnEraseBG, this);
+	Bind(wxEVT_MOUSEWHEEL, &Panel::OnMouseWheel, this);
 	
 	vkDevices = ConstructVkDevices();
 	
@@ -101,6 +102,7 @@ void Panel::OnPaint(wxPaintEvent &event){
 	DrawFrame();
 }
 void Panel::OnResize(wxSizeEvent &event){
+	xRayTransform.viewSize = (vec<2>){float(event.GetSize().x), float(event.GetSize().y)};
 	vkInterface->FramebufferResizeCallback();
 	DrawFrame();
 }
@@ -111,6 +113,15 @@ void Panel::OnPaintException(const std::string &message){
 	wxMessageBox(message, "Vulkan Error");
 	wxTheApp->ExitMainLoop();
 }
+void Panel::OnMouseWheel(wxMouseEvent &event){
+	if(!xRayLoaded)
+		return;
+	const vec<2> posNoTranslation = (static_cast<vec<2>>((vec<2, int>){event.GetX(), event.GetY()}) - 0.5f * xRayTransform.viewSize) / xRayTransform.zoom;
+	const float scale = std::pow(1.0f + zoomSensitivity, static_cast<float>(event.GetWheelRotation()));
+	xRayTransform.viewPos += (1.0f - 1.0f / scale) * posNoTranslation;
+	xRayTransform.zoom *= scale;
+	DrawFrame();
+}
 
 void Panel::DrawFrame(){
 	if(vkInterface->BeginFrame()){
@@ -120,6 +131,7 @@ void Panel::DrawFrame(){
 		if(xRayLoaded){
 			vkInterface->GP(0).Bind();
 			vkInterface->GP(0).BindDescriptorSets(0, 1);
+			vkInterface->GP(0).CmdPushConstants(0, &xRayTransform);
 			vkInterface->CmdBindVertexBuffer(0, 0);
 			vkInterface->CmdBindIndexBuffer(0, VK_INDEX_TYPE_UINT32);
 			vkInterface->CmdDrawIndexed(indicesN);
@@ -135,10 +147,13 @@ void Panel::LoadXRay(Data::DICOM::XRay xRay){
 		xRay.size.x,
 		xRay.size.y,
 		uint32_t(xRay.imageDepth * xRay.size.x),
-		VK_FORMAT_R16_UNORM,
+		Data::DICOM::MonochromeFormatFromImageDepth(xRay.imageDepth),
 		false
 	});
 	vkInterface->GP(0).UpdateDescriptorSets();
+	xRayTransform.xraySize = static_cast<vec<2>>(xRay.size);
+	xRayTransform.viewPos = (vec<2>){0.0f, 0.0f};
+	xRayTransform.zoom = 1.0f;
 	xRayLoaded = true;
 	DrawFrame();
 }
@@ -301,7 +316,11 @@ std::shared_ptr<EVK::Interface> Panel::ConstructVkInterface(){
 	rasterizer.depthBiasEnable = VK_FALSE;
 	EVK::GraphicsPipelineBlueprint pbMain = {
 		.pipelineBlueprint.descriptorSetBlueprints = {ds0},
-		.pipelineBlueprint.pushConstantRanges = {},
+		.pipelineBlueprint.pushConstantRanges = {(VkPushConstantRange){
+			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+			.offset = 0,
+			.size = sizeof(PCS_XRay)
+		}},
 		.shaderStageCIs = mainShaderStages,
 		.vertexInputStateCI = Vertex::attributeInfo,
 //		.vertexInputStateCI = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, 0, 0, nullptr, 0, nullptr},

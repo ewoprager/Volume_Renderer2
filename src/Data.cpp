@@ -1,5 +1,7 @@
 #include <string>
 
+#include <evk/Base.hpp>
+
 #include "Data.h"
 
 namespace Data {
@@ -169,11 +171,24 @@ std::optional<XRay> LoadXRay(const char *filename){
 	}
 	ret.imageDepth = imageSize / N;
 	ret.data = std::vector<uint8_t>(imageSize);
-	if(!image->getOutputData(ret.data.data(), imageSize, 8)){
+	if(!image->getOutputData(ret.data.data(), imageSize, 8 * int(ret.imageDepth))){
 		std::cerr << "Error: cannot read DICOM image data from " << filename << "\n";
 		return {};
 	}
 	return ret;
+}
+
+VkFormat MonochromeFormatFromImageDepth(size_t imageDepth){
+	switch(imageDepth){
+		case 1:
+			return VK_FORMAT_R8_UNORM;
+		case 2:
+			return VK_FORMAT_R16_UNORM;
+		case 4:
+			return VK_FORMAT_R32_UINT;
+		default:
+			throw std::runtime_error("Unhandled image depth; no known format");
+	}
 }
 
 } // namespace DICOM

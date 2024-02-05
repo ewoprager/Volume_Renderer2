@@ -14,6 +14,7 @@ namespace DICOM {
 
 class XRay;
 
+VkFormat MonochromeFormatFromImageDepth(size_t imageDepth);
 std::optional<XRay> LoadXRay(const char *filename);
 
 struct XRay {

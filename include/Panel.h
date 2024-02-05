@@ -2,10 +2,18 @@
 
 #include "wx/wx.h"
 #include <evk/Base.hpp>
+#include <mattresses.h>
 
 #include "guistructs.h"
 
 #include "Data.h"
+
+struct PCS_XRay {
+	vec<2> viewPos;
+	vec<2> xraySize;
+	vec<2> viewSize;
+	float zoom;
+};
 
 class Panel : wxPanel {
 public:
@@ -20,11 +28,20 @@ private:
 	std::shared_ptr<EVK::Interface> vkInterface {};
 	
 	bool xRayLoaded = false;
+	PCS_XRay xRayTransform;
+	float zoomSensitivity = 8.e-4f;
+	/*
+	 origin is in centre of Xray
+	 x-positive right
+	 y-positive down
+	 normal scale is that of Xray pixels
+	 */
 	
 	void OnPaint(wxPaintEvent &event);
 	void OnResize(wxSizeEvent &event);
 	void OnEraseBG(wxEraseEvent &event);
 	void OnPaintException(const std::string &message);
+	void OnMouseWheel(wxMouseEvent &event);
 	
 	std::shared_ptr<EVK::Devices> ConstructVkDevices();
 	std::shared_ptr<EVK::Interface> ConstructVkInterface();
