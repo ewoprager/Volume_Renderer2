@@ -35,7 +35,7 @@
 
 #include <mattresses.h>
 
-#include "Panel.h"
+#include "MainPanel.h"
 
 struct Vertex {
 	vec<2> position;
@@ -75,20 +75,20 @@ static const Vertex triangleVertices[verticesN] = {
 static constexpr uint32_t indicesN = 6;
 static uint32_t triangleIndices[indicesN] = {0, 1, 2, 0, 2, 3};
 
-BEGIN_EVENT_TABLE(Panel, wxPanel)
-//EVT_MOUSE_EVENTS(VulkanCanvas::OnMouse)
+BEGIN_EVENT_TABLE(MainPanel, wxPanel)
+EVT_MOUSE_EVENTS(MainPanel::OnMouse)
 //EVT_KEY_DOWN(VulkanCanvas::OnKeyDown)
 //EVT_KEY_UP(VulkanCanvas::OnKeyUp)
 //EVT_KILL_FOCUS(VulkanCanvas::OnKillFocus)
 END_EVENT_TABLE()
 
-Panel::Panel(wxWindow *pParent, wxWindowID id, const wxPoint &pos, const wxSize &size, long style, const wxString &name)
+MainPanel::MainPanel(wxWindow *pParent, wxWindowID id, const wxPoint &pos, const wxSize &size, long style, const wxString &name)
 : wxPanel(pParent, id, pos, size, style, name){
 	
-	Bind(wxEVT_PAINT, &Panel::OnPaint, this);
-	Bind(wxEVT_SIZE, &Panel::OnResize, this);
-	Bind(wxEVT_ERASE_BACKGROUND, &Panel::OnEraseBG, this);
-	Bind(wxEVT_MOUSEWHEEL, &Panel::OnMouseWheel, this);
+	Bind(wxEVT_PAINT, &MainPanel::OnPaint, this);
+	Bind(wxEVT_SIZE, &MainPanel::OnResize, this);
+	Bind(wxEVT_ERASE_BACKGROUND, &MainPanel::OnEraseBG, this);
+	Bind(wxEVT_MOUSEWHEEL, &MainPanel::OnMouseWheel, this);
 	
 	vkDevices = ConstructVkDevices();
 	
@@ -98,40 +98,74 @@ Panel::Panel(wxWindow *pParent, wxWindowID id, const wxPoint &pos, const wxSize 
 	vkInterface->FillIndexBuffer(0, triangleIndices, indicesN);
 }
 
-void Panel::OnPaint(wxPaintEvent &event){
+void MainPanel::OnPaint(wxPaintEvent &event){
 	DrawFrame();
 }
-void Panel::OnResize(wxSizeEvent &event){
+void MainPanel::OnResize(wxSizeEvent &event){
 	xRayTransform.viewSize = (vec<2>){float(event.GetSize().x), float(event.GetSize().y)};
 	vkInterface->FramebufferResizeCallback();
 	DrawFrame();
 }
-void Panel::OnEraseBG(wxEraseEvent &event){
+void MainPanel::OnEraseBG(wxEraseEvent &event){
 	
 }
-void Panel::OnPaintException(const std::string &message){
+void MainPanel::OnPaintException(const std::string &message){
 	wxMessageBox(message, "Vulkan Error");
 	wxTheApp->ExitMainLoop();
 }
-void Panel::OnMouseWheel(wxMouseEvent &event){
-	if(!xRayLoaded)
-		return;
+void MainPanel::OnMouseWheel(wxMouseEvent &event){
+	if(!currentXRay) return;
 	const vec<2> posNoTranslation = (static_cast<vec<2>>((vec<2, int>){event.GetX(), event.GetY()}) - 0.5f * xRayTransform.viewSize) / xRayTransform.zoom;
 	const float scale = std::pow(1.0f + zoomSensitivity, static_cast<float>(event.GetWheelRotation()));
 	xRayTransform.viewPos += (1.0f - 1.0f / scale) * posNoTranslation;
 	xRayTransform.zoom *= scale;
 	DrawFrame();
 }
+void MainPanel::OnMouse(wxMouseEvent &event){
+	static std::optional<vec<2, int>> positionPrev {};
+	
+	const vec<2, int> position = vec<2, int>{event.GetX(), event.GetY()};
+	
+	if(event.ButtonDown()){
+		positionPrev = position;
+		return;
+	}
+	
+	if(event.Dragging()){
+		if(!positionPrev) return;
+		
+		const vec<2> delta = static_cast<vec<2>>(position - positionPrev.value());
+		
+		switch(mouseMode){
+			case MouseMode::WINDOWING:
+				SetXRayWindowingConstants(xRayWindowCentre - 32 * delta.y, xRayWindowWidth + 32 * delta.x);
+				break;
+			case MouseMode::VIEW_POS:
+				xRayTransform.viewPos -= delta / xRayTransform.zoom;
+				break;
+			default:
+				throw std::runtime_error("Unhandled mouse mode");
+				break;
+		}
+		
+		DrawFrame();
+		
+		positionPrev = position;
+		return;
+	}
 
-void Panel::DrawFrame(){
+}
+
+void MainPanel::DrawFrame(){
 	if(vkInterface->BeginFrame()){
 		
 		vkInterface->BeginFinalRenderPass({{0.0f, 0.0f, 0.0f, 1.0f}});
 		
-		if(xRayLoaded){
+		if(currentXRay){
 			vkInterface->GP(0).Bind();
 			vkInterface->GP(0).BindDescriptorSets(0, 1);
 			vkInterface->GP(0).CmdPushConstants(0, &xRayTransform);
+			vkInterface->GP(0).CmdPushConstants(1, &xRayWindowing);
 			vkInterface->CmdBindVertexBuffer(0, 0);
 			vkInterface->CmdBindIndexBuffer(0, VK_INDEX_TYPE_UINT32);
 			vkInterface->CmdDrawIndexed(indicesN);
@@ -141,7 +175,44 @@ void Panel::DrawFrame(){
 	}
 }
 
-void Panel::LoadXRay(Data::DICOM::XRay xRay){
+void MainPanel::DefaultXRayWindowingConstants(){
+	if(!currentXRay) return;
+	
+	SetXRayWindowingConstants(currentXRay->valueMax / 2, currentXRay->valueMax);
+}
+void MainPanel::SetXRayWindowingConstants(int64_t centre, int64_t width){
+	if(!currentXRay) return;
+	
+	std::cout << "Centre was " << centre << ", width was " << width << "\n";
+	
+	if(centre < 1) centre = 1;
+	else if(centre > currentXRay->valueMax - 1) centre = currentXRay->valueMax - 1;
+	
+	if(width < 2) width = 2;
+	
+//	if(width > currentXRay->valueMax){
+//		width = currentXRay->valueMax;
+//		centre = currentXRay->valueMax / 2;
+//	} else {
+//		if(centre - width / 2 < 0){
+//			centre = width / 2;
+//		}
+//		if(centre + width / 2 > currentXRay->valueMax){
+//			centre = currentXRay->valueMax - width / 2;
+//		}
+//	}
+	
+	std::cout << "Now centre is " << centre << ", width is " << width << "\n";
+	
+	const float fMaxInverse = 1.0f / static_cast<float>(currentXRay->valueMax - 1);
+	xRayWindowing.windowCentre = static_cast<float>(centre) * fMaxInverse;
+	xRayWindowing.windowWidth = static_cast<float>(width) * fMaxInverse;
+	
+	xRayWindowCentre = centre;
+	xRayWindowWidth = width;
+}
+
+void MainPanel::LoadXRay(Data::DICOM::XRay xRay){
 	vkInterface->BuildDataImage(0, (EVK::DataImageBlueprint){
 		.data = xRay.data.data(),
 		xRay.size.x,
@@ -154,11 +225,14 @@ void Panel::LoadXRay(Data::DICOM::XRay xRay){
 	xRayTransform.xraySize = static_cast<vec<2>>(xRay.size);
 	xRayTransform.viewPos = (vec<2>){0.0f, 0.0f};
 	xRayTransform.zoom = 1.0f;
-	xRayLoaded = true;
+	currentXRay = CurrentXRay{
+		.valueMax = (1 << (8 * xRay.imageDepth))
+	};
+	DefaultXRayWindowingConstants();
 	DrawFrame();
 }
 
-std::shared_ptr<EVK::Devices> Panel::ConstructVkDevices(){
+std::shared_ptr<EVK::Devices> MainPanel::ConstructVkDevices(){
 	return std::make_shared<EVK::Devices>("Volume_Renderer2", GetRequiredExtensions(),
 										  [this](VkInstance instance) -> VkSurfaceKHR {
 	  gui_initHandleContextFromWxWidgetsWindow(g_window_info.canvas_main, this);
@@ -180,7 +254,7 @@ std::shared_ptr<EVK::Devices> Panel::ConstructVkDevices(){
 	  };
   });
 }
-std::shared_ptr<EVK::Interface> Panel::ConstructVkInterface(){
+std::shared_ptr<EVK::Interface> MainPanel::ConstructVkInterface(){
 	VkPipelineRasterizationStateCreateInfo rasterizer{};
 	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	rasterizer.depthClampEnable = VK_FALSE;
@@ -316,11 +390,18 @@ std::shared_ptr<EVK::Interface> Panel::ConstructVkInterface(){
 	rasterizer.depthBiasEnable = VK_FALSE;
 	EVK::GraphicsPipelineBlueprint pbMain = {
 		.pipelineBlueprint.descriptorSetBlueprints = {ds0},
-		.pipelineBlueprint.pushConstantRanges = {(VkPushConstantRange){
-			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-			.offset = 0,
-			.size = sizeof(PCS_XRay)
-		}},
+		.pipelineBlueprint.pushConstantRanges = {
+			(VkPushConstantRange){
+				.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+				.offset = 0,
+				.size = sizeof(PCS_XRay_Vert)
+			},
+			(VkPushConstantRange){
+				.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+				.offset = sizeof(PCS_XRay_Vert),
+				.size = sizeof(PCS_XRay_Frag)
+			}
+		},
 		.shaderStageCIs = mainShaderStages,
 		.vertexInputStateCI = Vertex::attributeInfo,
 //		.vertexInputStateCI = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, 0, 0, nullptr, 0, nullptr},
@@ -374,7 +455,7 @@ std::shared_ptr<EVK::Interface> Panel::ConstructVkInterface(){
 	return ret;
 }
 
-std::vector<const char*> Panel::GetRequiredExtensions() {
+std::vector<const char*> MainPanel::GetRequiredExtensions() {
 #ifdef _WIN32
 	std::vector<const char*> extensions = { "VK_KHR_surface", "VK_KHR_win32_surface" };
 #elif defined(__APPLE__)
@@ -384,7 +465,7 @@ std::vector<const char*> Panel::GetRequiredExtensions() {
 #endif
 	return extensions;
 }
-VkSurfaceKHR Panel::CreateFramebufferSurface(VkInstance instance, struct WindowHandleInfo& windowInfo){
+VkSurfaceKHR MainPanel::CreateFramebufferSurface(VkInstance instance, struct WindowHandleInfo& windowInfo){
 #ifdef _WIN32
 	return CreateWinSurface(instance, windowInfo.hwnd);
 #elif defined(__linux__)
@@ -454,7 +535,7 @@ VkSurfaceKHR Panel::CreateXlibSurface(VkInstance instance, Display* dpy, Window 
 }
 #endif
 
-void Panel::gui_initHandleContextFromWxWidgetsWindow(WindowHandleInfo& handleInfoOut, class wxWindow* wxw){
+void MainPanel::gui_initHandleContextFromWxWidgetsWindow(WindowHandleInfo& handleInfoOut, class wxWindow* wxw){
 #ifdef _WIN32
 	handleInfoOut.hwnd = wxw->GetHWND();
 #elif defined(__linux__)

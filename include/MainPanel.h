@@ -8,28 +8,45 @@
 
 #include "Data.h"
 
-struct PCS_XRay {
+struct PCS_XRay_Vert {
 	vec<2> viewPos;
 	vec<2> xraySize;
 	vec<2> viewSize;
 	float zoom;
 };
+struct PCS_XRay_Frag {
+	float windowCentre;
+	float windowWidth;
+};
 
-class Panel : wxPanel {
+class MainPanel : public wxPanel {
 public:
-	Panel(wxWindow *pParent, wxWindowID id = wxID_ANY, const wxPoint &pos = wxDefaultPosition, const wxSize &size = wxDefaultSize, long style = 0, const wxString &name = "PanelName");
+	MainPanel(wxWindow *pParent, wxWindowID id, const wxPoint &pos = wxDefaultPosition, const wxSize &size = wxDefaultSize, long style = 0, const wxString &name = "PanelName");
 	
 	void DrawFrame();
 	
 	void LoadXRay(Data::DICOM::XRay xRay);
 	
+	enum class MouseMode {WINDOWING, VIEW_POS, _COUNT_};
+	void SetMouseMode(MouseMode to){ mouseMode = to; std::cout << int(mouseMode) << "\n"; }
+	
 private:
 	std::shared_ptr<EVK::Devices> vkDevices {};
 	std::shared_ptr<EVK::Interface> vkInterface {};
 	
-	bool xRayLoaded = false;
-	PCS_XRay xRayTransform;
+	struct CurrentXRay {
+		int64_t valueMax;
+	};
+	std::optional<CurrentXRay> currentXRay {};
+	
+	PCS_XRay_Vert xRayTransform;
+	int64_t xRayWindowCentre;
+	int64_t xRayWindowWidth;
+	PCS_XRay_Frag xRayWindowing;
+	void DefaultXRayWindowingConstants();
+	void SetXRayWindowingConstants(int64_t centre, int64_t width);
 	float zoomSensitivity = 8.e-4f;
+	MouseMode mouseMode = MouseMode::WINDOWING;
 	/*
 	 origin is in centre of Xray
 	 x-positive right
@@ -42,6 +59,7 @@ private:
 	void OnEraseBG(wxEraseEvent &event);
 	void OnPaintException(const std::string &message);
 	void OnMouseWheel(wxMouseEvent &event);
+	void OnMouse(wxMouseEvent &event);
 	
 	std::shared_ptr<EVK::Devices> ConstructVkDevices();
 	std::shared_ptr<EVK::Interface> ConstructVkInterface();
