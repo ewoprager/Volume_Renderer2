@@ -2,6 +2,7 @@
 #include <wx/log.h>
 
 #include "App.h"
+#include "ImProc.h"
 
 #include "Frame.h"
 
@@ -94,7 +95,9 @@ void Frame::OnOpenXray(wxCommandEvent &event){
 	if(xRay){
 		std::cout << "XRay loaded!\nSize = [" << xRay->size.x << " x " << xRay->size.y << "]\nPixel spacing = " << xRay->pixelSpacing << "\nSource distance = " << xRay->sourceDistance << "\nImage depth = " << xRay->imageDepth << "\n";
 		
-		mainPanel->LoadXRay(xRay.value());
+		Data::XRay copy = xRay.value();
+		Data::GaussianBlur(copy);
+		mainPanel->LoadXRay(copy);
 	}
 }
 

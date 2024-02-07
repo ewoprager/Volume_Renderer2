@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 project(Volume_Renderer2)
 
+set(OpenCV_DIR "/opt/local/libexec/opencv4/cmake")
+
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules")
 
 function(add_shader TARGET SHADER)
@@ -36,10 +38,10 @@ endfunction(add_shader)
 #set(DEMO_ENABLE_MULTISAMPLE 0 CACHE BOOL "Enable multisample anti-aliasing")
 #configure_file(demo-config.h.in "${CMAKE_BINARY_DIR}/demo-config.h")
 
-# Find SDL2 and OpenGL
 find_package(wxWidgets REQUIRED COMPONENTS net core base gl)
 find_package(OpenGL REQUIRED)
 find_package(DCMTK REQUIRED)
+find_package(OpenCV REQUIRED)
 
 if(APPLE)
 	if(DEFINED ENV_WX_CONFIG)
@@ -96,7 +98,7 @@ if(APPLE)
 set(APPLE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/CocoaSurface.h" "${CMAKE_CURRENT_SOURCE_DIR}/src/CocoaSurface.mm")
 endif()
 
-include_directories("${OPENGL_INCLUDE_DIR}" "${CMAKE_BINARY_DIR}")
+include_directories("${OPENGL_INCLUDE_DIR}" "${CMAKE_BINARY_DIR}" "${OpenCV_INCLUDE_DIRS}")
 
 if(WIN32)
 	add_executable(${PROJECT_NAME} WIN32
@@ -145,6 +147,7 @@ target_link_libraries(${PROJECT_NAME}
 	${OPENGL_LIBRARIES}
 	${wxWidgets_LIBRARIES}
 	${DCMTK_LIBRARIES}
+	${OpenCV_LIBS}
 )
 
 if(UNIX AND NOT APPLE)

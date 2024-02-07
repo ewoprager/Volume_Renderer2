@@ -23,7 +23,7 @@ private:
 	std::shared_ptr<MainPanel> mainPanel;
 	std::shared_ptr<ViewPanel> viewPanel;
 	
-	std::optional<Data::DICOM::XRay> xRay;
+	std::optional<Data::XRay> xRay;
 	
     //void OnResize(wxSizeEvent& event);
     void OnCreate(wxPaintEvent &event);

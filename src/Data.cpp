@@ -8,31 +8,6 @@ namespace Data {
 
 namespace DICOM {
 
-void PrintType(DcmDataset *dataset, const DcmTagKey &key){
-	{  const char *		value;  OFCondition readStatus = dataset->findAndGetString			(key, value); if(readStatus.good()){ std::cout << "Type const char *	 worked: " << value << "\n"; }  }
-	{  OFString			value;  OFCondition readStatus = dataset->findAndGetOFString 		(key, value); if(readStatus.good()){ std::cout << "Type OFString		 worked: " << value << "\n"; }  }
-	{  OFString 		value;  OFCondition readStatus = dataset->findAndGetOFStringArray 	(key, value); if(readStatus.good()){ std::cout << "Type OFString array	 worked: " << value << "\n"; }  }
-	{  Uint8 			value;  OFCondition readStatus = dataset->findAndGetUint8 			(key, value); if(readStatus.good()){ std::cout << "Type Uint8 			 worked: " << value << "\n"; }  }
-	{  const Uint8 * 	value;  OFCondition readStatus = dataset->findAndGetUint8Array 		(key, value); if(readStatus.good()){ std::cout << "Type const Uint8 * 	 worked: " << value << "\n"; }  }
-	{  Uint16 			value;  OFCondition readStatus = dataset->findAndGetUint16 			(key, value); if(readStatus.good()){ std::cout << "Type Uint16 			 worked: " << value << "\n"; }  }
-	{  const Uint16 *	value;  OFCondition readStatus = dataset->findAndGetUint16Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Uint16 *	 worked: " << value << "\n"; }  }
-	{  Sint16 			value;  OFCondition readStatus = dataset->findAndGetSint16 			(key, value); if(readStatus.good()){ std::cout << "Type Sint16 			 worked: " << value << "\n"; }  }
-	{  const Sint16 *	value;  OFCondition readStatus = dataset->findAndGetSint16Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Sint16 *	 worked: " << value << "\n"; }  }
-	{  Uint32 			value;  OFCondition readStatus = dataset->findAndGetUint32 			(key, value); if(readStatus.good()){ std::cout << "Type Uint32 			 worked: " << value << "\n"; }  }
-	{  const Uint32 * 	value;  OFCondition readStatus = dataset->findAndGetUint32Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Uint32 * 	 worked: " << value << "\n"; }  }
-	{  Sint32 			value;  OFCondition readStatus = dataset->findAndGetSint32 			(key, value); if(readStatus.good()){ std::cout << "Type Sint32 			 worked: " << value << "\n"; }  }
-	{  const Sint32 * 	value;  OFCondition readStatus = dataset->findAndGetSint32Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Sint32 * 	 worked: " << value << "\n"; }  }
-	{  Uint64 			value;  OFCondition readStatus = dataset->findAndGetUint64 			(key, value); if(readStatus.good()){ std::cout << "Type Uint64 			 worked: " << value << "\n"; }  }
-	{  const Uint64 * 	value;  OFCondition readStatus = dataset->findAndGetUint64Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Uint64 * 	 worked: " << value << "\n"; }  }
-	{  Sint64 			value;  OFCondition readStatus = dataset->findAndGetSint64 			(key, value); if(readStatus.good()){ std::cout << "Type Sint64 			 worked: " << value << "\n"; }  }
-	{  const Sint64 * 	value;  OFCondition readStatus = dataset->findAndGetSint64Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Sint64 * 	 worked: " << value << "\n"; }  }
-	{  long int 		value;  OFCondition readStatus = dataset->findAndGetLongInt 		(key, value); if(readStatus.good()){ std::cout << "Type long int 		 worked: " << value << "\n"; }  }
-	{  Float32 			value;  OFCondition readStatus = dataset->findAndGetFloat32 		(key, value); if(readStatus.good()){ std::cout << "Type Float32 		 worked: " << value << "\n"; }  }
-	{  const Float32 * 	value;  OFCondition readStatus = dataset->findAndGetFloat32Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Float32 *  worked: " << value << "\n"; }  }
-	{  Float64 			value;  OFCondition readStatus = dataset->findAndGetFloat64 		(key, value); if(readStatus.good()){ std::cout << "Type Float64 		 worked: " << value << "\n"; }  }
-	{  const Float64 * 	value;  OFCondition readStatus = dataset->findAndGetFloat64Array	(key, value); if(readStatus.good()){ std::cout << "Type const Float64 *  worked: " << value << "\n"; }  }
-}
-
 std::vector<std::string> SplitString(std::string str){
 	static const std::string delimiter = "\\";
 	size_t pos = 0;
@@ -178,19 +153,57 @@ std::optional<XRay> LoadXRay(const char *filename){
 	return ret;
 }
 
-VkFormat MonochromeFormatFromImageDepth(size_t imageDepth){
+void PrintType(DcmDataset *dataset, const DcmTagKey &key){
+	{  const char *		value;  OFCondition readStatus = dataset->findAndGetString			(key, value); if(readStatus.good()){ std::cout << "Type const char *	 worked: " << value << "\n"; }  }
+	{  OFString			value;  OFCondition readStatus = dataset->findAndGetOFString 		(key, value); if(readStatus.good()){ std::cout << "Type OFString		 worked: " << value << "\n"; }  }
+	{  OFString 		value;  OFCondition readStatus = dataset->findAndGetOFStringArray 	(key, value); if(readStatus.good()){ std::cout << "Type OFString array	 worked: " << value << "\n"; }  }
+	{  Uint8 			value;  OFCondition readStatus = dataset->findAndGetUint8 			(key, value); if(readStatus.good()){ std::cout << "Type Uint8 			 worked: " << value << "\n"; }  }
+	{  const Uint8 * 	value;  OFCondition readStatus = dataset->findAndGetUint8Array 		(key, value); if(readStatus.good()){ std::cout << "Type const Uint8 * 	 worked: " << value << "\n"; }  }
+	{  Uint16 			value;  OFCondition readStatus = dataset->findAndGetUint16 			(key, value); if(readStatus.good()){ std::cout << "Type Uint16 			 worked: " << value << "\n"; }  }
+	{  const Uint16 *	value;  OFCondition readStatus = dataset->findAndGetUint16Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Uint16 *	 worked: " << value << "\n"; }  }
+	{  Sint16 			value;  OFCondition readStatus = dataset->findAndGetSint16 			(key, value); if(readStatus.good()){ std::cout << "Type Sint16 			 worked: " << value << "\n"; }  }
+	{  const Sint16 *	value;  OFCondition readStatus = dataset->findAndGetSint16Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Sint16 *	 worked: " << value << "\n"; }  }
+	{  Uint32 			value;  OFCondition readStatus = dataset->findAndGetUint32 			(key, value); if(readStatus.good()){ std::cout << "Type Uint32 			 worked: " << value << "\n"; }  }
+	{  const Uint32 * 	value;  OFCondition readStatus = dataset->findAndGetUint32Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Uint32 * 	 worked: " << value << "\n"; }  }
+	{  Sint32 			value;  OFCondition readStatus = dataset->findAndGetSint32 			(key, value); if(readStatus.good()){ std::cout << "Type Sint32 			 worked: " << value << "\n"; }  }
+	{  const Sint32 * 	value;  OFCondition readStatus = dataset->findAndGetSint32Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Sint32 * 	 worked: " << value << "\n"; }  }
+	{  Uint64 			value;  OFCondition readStatus = dataset->findAndGetUint64 			(key, value); if(readStatus.good()){ std::cout << "Type Uint64 			 worked: " << value << "\n"; }  }
+	{  const Uint64 * 	value;  OFCondition readStatus = dataset->findAndGetUint64Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Uint64 * 	 worked: " << value << "\n"; }  }
+	{  Sint64 			value;  OFCondition readStatus = dataset->findAndGetSint64 			(key, value); if(readStatus.good()){ std::cout << "Type Sint64 			 worked: " << value << "\n"; }  }
+	{  const Sint64 * 	value;  OFCondition readStatus = dataset->findAndGetSint64Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Sint64 * 	 worked: " << value << "\n"; }  }
+	{  long int 		value;  OFCondition readStatus = dataset->findAndGetLongInt 		(key, value); if(readStatus.good()){ std::cout << "Type long int 		 worked: " << value << "\n"; }  }
+	{  Float32 			value;  OFCondition readStatus = dataset->findAndGetFloat32 		(key, value); if(readStatus.good()){ std::cout << "Type Float32 		 worked: " << value << "\n"; }  }
+	{  const Float32 * 	value;  OFCondition readStatus = dataset->findAndGetFloat32Array 	(key, value); if(readStatus.good()){ std::cout << "Type const Float32 *  worked: " << value << "\n"; }  }
+	{  Float64 			value;  OFCondition readStatus = dataset->findAndGetFloat64 		(key, value); if(readStatus.good()){ std::cout << "Type Float64 		 worked: " << value << "\n"; }  }
+	{  const Float64 * 	value;  OFCondition readStatus = dataset->findAndGetFloat64Array	(key, value); if(readStatus.good()){ std::cout << "Type const Float64 *  worked: " << value << "\n"; }  }
+}
+
+} // namespace DICOM
+
+VkFormat MonochromeVKFormatFromImageDepth(size_t imageDepth){
 	switch(imageDepth){
 		case 1:
 			return VK_FORMAT_R8_UNORM;
 		case 2:
 			return VK_FORMAT_R16_UNORM;
 		case 4:
-			return VK_FORMAT_R32_UINT;
+			return VK_FORMAT_R32_SFLOAT;
 		default:
 			throw std::runtime_error("Unhandled image depth; no known format");
 	}
 }
 
-} // namespace DICOM
+int MonochromeCVFormatFromImageDepth(size_t imageDepth){
+	switch(imageDepth){
+		case 1:
+			return CV_8U;
+		case 2:
+			return CV_16U;
+		case 4:
+			return CV_32F;
+		default:
+			throw std::runtime_error("Unhandled image depth; no known format");
+	}
+}
 
 } // namespace Data

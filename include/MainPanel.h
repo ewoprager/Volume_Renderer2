@@ -25,7 +25,7 @@ public:
 	
 	void DrawFrame();
 	
-	void LoadXRay(Data::DICOM::XRay xRay);
+	void LoadXRay(Data::XRay xRay);
 	
 	enum class MouseMode {WINDOWING, VIEW_POS, _COUNT_};
 	void SetMouseMode(MouseMode to){ mouseMode = to; std::cout << int(mouseMode) << "\n"; }

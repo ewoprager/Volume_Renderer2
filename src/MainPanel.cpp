@@ -116,9 +116,14 @@ void MainPanel::OnPaintException(const std::string &message){
 void MainPanel::OnMouseWheel(wxMouseEvent &event){
 	if(!currentXRay) return;
 	const vec<2> posNoTranslation = (static_cast<vec<2>>((vec<2, int>){event.GetX(), event.GetY()}) - 0.5f * xRayTransform.viewSize) / xRayTransform.zoom;
-	const float scale = std::pow(1.0f + zoomSensitivity, static_cast<float>(event.GetWheelRotation()));
-	xRayTransform.viewPos += (1.0f - 1.0f / scale) * posNoTranslation;
+	float scale = std::pow(1.0f + zoomSensitivity, static_cast<float>(event.GetWheelRotation()));
+	const float prevZoom = xRayTransform.zoom;
 	xRayTransform.zoom *= scale;
+	if(xRayTransform.zoom < 0.25f){
+		xRayTransform.zoom = 0.25f;
+		scale = xRayTransform.zoom / prevZoom;
+	}
+	xRayTransform.viewPos += (1.0f - 1.0f / scale) * posNoTranslation;
 	DrawFrame();
 }
 void MainPanel::OnMouse(wxMouseEvent &event){
@@ -212,13 +217,13 @@ void MainPanel::SetXRayWindowingConstants(int64_t centre, int64_t width){
 	xRayWindowWidth = width;
 }
 
-void MainPanel::LoadXRay(Data::DICOM::XRay xRay){
+void MainPanel::LoadXRay(Data::XRay xRay){
 	vkInterface->BuildDataImage(0, (EVK::DataImageBlueprint){
 		.data = xRay.data.data(),
 		xRay.size.x,
 		xRay.size.y,
 		uint32_t(xRay.imageDepth * xRay.size.x),
-		Data::DICOM::MonochromeFormatFromImageDepth(xRay.imageDepth),
+		Data::MonochromeVKFormatFromImageDepth(xRay.imageDepth),
 		false
 	});
 	vkInterface->GP(0).UpdateDescriptorSets();
