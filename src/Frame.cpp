@@ -21,7 +21,7 @@ Frame::Frame(wxWindow *parent, const wxString &title, const wxPoint &pos, const 
     wxMenu *fileMenu = new wxMenu;
     fileMenu->Append(wxID_ABOUT, "&About");
     fileMenu->Append(wxID_EXIT, "&Quit");
-	wxMenuItem *openXrayItem = fileMenu->Append(wxID_ANY, "&Open X-Ray");
+	wxMenuItem *openXrayItem = fileMenu->Append(wxID_ANY, "&Load X-Ray DICOM");
 		
     wxMenuBar *menuBar = new wxMenuBar;
     menuBar->Append(fileMenu, "&File");
@@ -38,7 +38,7 @@ Frame::Frame(wxWindow *parent, const wxString &title, const wxPoint &pos, const 
 	
 	controlPanel = std::make_shared<ControlPanel>(this, -1);
 	controlPanel->SetScrollRate(10, 10);
-	controlPanel->SetMinSize(wxSize{210, -1});
+	controlPanel->SetMinSize(wxSize{300, 300});
 	mainSizer->Add(controlPanel.get(), 0, wxEXPAND);
 	
 	rightSizer = std::make_shared<wxBoxSizer>(wxVERTICAL);
@@ -46,7 +46,7 @@ Frame::Frame(wxWindow *parent, const wxString &title, const wxPoint &pos, const 
 	mainPanel = std::make_shared<MainPanel>(this, wxID_ANY);
 	rightSizer->Add(mainPanel.get(), 1, wxEXPAND);
 	
-	viewPanel = std::make_shared<ViewPanel>(mainPanel.get(), this, wxID_ANY);
+	viewPanel = std::make_shared<ViewPanel>(this, wxID_ANY);
 	rightSizer->Add(viewPanel.get(), 0, wxEXPAND);
 	
 	mainSizer->Add(rightSizer.get(), 1, wxEXPAND);
@@ -93,7 +93,7 @@ void Frame::OnOpenXray(wxCommandEvent &event){
 	
 	xRay = Data::DICOM::LoadXRay(openFileDialog.GetPath());
 	if(xRay){
-		std::cout << "XRay loaded!\nSize = [" << xRay->size.x << " x " << xRay->size.y << "]\nPixel spacing = " << xRay->pixelSpacing << "\nSource distance = " << xRay->sourceDistance << "\nImage depth = " << xRay->imageDepth << "\n";
+		controlPanel->SetXRayInfo(xRay.value());
 		
 		Data::XRay copy = xRay.value();
 		Data::GaussianBlur(copy);

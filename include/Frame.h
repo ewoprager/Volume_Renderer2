@@ -15,7 +15,13 @@ public:
 
 	void Idle();
 
-	bool CheckValidPanel(){ return bool(mainPanel); }
+	bool CheckValidPanel() const { return bool(mainPanel); }
+	
+	MainPanel *GetMainPanel() const { return mainPanel.get(); }
+	ViewPanel *GetViewPanel() const { return viewPanel.get(); }
+	
+	void OnOpenXray(wxCommandEvent &event);
+	
 private:
 	std::shared_ptr<wxBoxSizer> mainSizer;
 	std::shared_ptr<ControlPanel> controlPanel;
@@ -33,7 +39,6 @@ private:
     void OnClose(wxCloseEvent &event);
     void OnQuit(wxCommandEvent &event);
     void OnAbout(wxCommandEvent &event);
-	void OnOpenXray(wxCommandEvent &event);
 	
     DECLARE_EVENT_TABLE()
 };

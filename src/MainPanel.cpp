@@ -35,6 +35,8 @@
 
 #include <mattresses.h>
 
+#include "Frame.h"
+
 #include "MainPanel.h"
 
 struct Vertex {
@@ -82,8 +84,8 @@ EVT_MOUSE_EVENTS(MainPanel::OnMouse)
 //EVT_KILL_FOCUS(VulkanCanvas::OnKillFocus)
 END_EVENT_TABLE()
 
-MainPanel::MainPanel(wxWindow *pParent, wxWindowID id, const wxPoint &pos, const wxSize &size, long style, const wxString &name)
-: wxPanel(pParent, id, pos, size, style, name){
+MainPanel::MainPanel(Frame *_frameParent, wxWindowID id, const wxPoint &pos, const wxSize &size, long style, const wxString &name)
+: wxPanel(_frameParent, id, pos, size, style, name), frameParent(_frameParent) {
 	
 	Bind(wxEVT_PAINT, &MainPanel::OnPaint, this);
 	Bind(wxEVT_SIZE, &MainPanel::OnResize, this);
@@ -147,13 +149,12 @@ void MainPanel::OnMouse(wxMouseEvent &event){
 				break;
 			case MouseMode::VIEW_POS:
 				xRayTransform.viewPos -= delta / xRayTransform.zoom;
+				DrawFrame();
 				break;
 			default:
 				throw std::runtime_error("Unhandled mouse mode");
 				break;
 		}
-		
-		DrawFrame();
 		
 		positionPrev = position;
 		return;
@@ -188,26 +189,24 @@ void MainPanel::DefaultXRayWindowingConstants(){
 void MainPanel::SetXRayWindowingConstants(int64_t centre, int64_t width){
 	if(!currentXRay) return;
 	
-	std::cout << "Centre was " << centre << ", width was " << width << "\n";
-	
 	if(centre < 1) centre = 1;
 	else if(centre > currentXRay->valueMax - 1) centre = currentXRay->valueMax - 1;
 	
 	if(width < 2) width = 2;
 	
-//	if(width > currentXRay->valueMax){
-//		width = currentXRay->valueMax;
-//		centre = currentXRay->valueMax / 2;
-//	} else {
-//		if(centre - width / 2 < 0){
-//			centre = width / 2;
-//		}
-//		if(centre + width / 2 > currentXRay->valueMax){
-//			centre = currentXRay->valueMax - width / 2;
-//		}
-//	}
-	
-	std::cout << "Now centre is " << centre << ", width is " << width << "\n";
+	if(constrainXRayWindowing){
+		if(width > currentXRay->valueMax){
+			width = currentXRay->valueMax;
+			centre = currentXRay->valueMax / 2;
+		} else {
+			if(centre - width / 2 < 0){
+				centre = width / 2;
+			}
+			if(centre + width / 2 > currentXRay->valueMax){
+				centre = currentXRay->valueMax - width / 2;
+			}
+		}
+	}
 	
 	const float fMaxInverse = 1.0f / static_cast<float>(currentXRay->valueMax - 1);
 	xRayWindowing.windowCentre = static_cast<float>(centre) * fMaxInverse;
@@ -215,6 +214,10 @@ void MainPanel::SetXRayWindowingConstants(int64_t centre, int64_t width){
 	
 	xRayWindowCentre = centre;
 	xRayWindowWidth = width;
+	
+	frameParent->GetViewPanel()->SetWindowingInfo(xRayWindowCentre, xRayWindowWidth);
+	
+	DrawFrame();
 }
 
 void MainPanel::LoadXRay(Data::XRay xRay){

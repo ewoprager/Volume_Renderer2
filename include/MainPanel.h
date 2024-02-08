@@ -6,6 +6,7 @@
 
 #include "guistructs.h"
 
+#include "Header.h"
 #include "Data.h"
 
 struct PCS_XRay_Vert {
@@ -21,7 +22,7 @@ struct PCS_XRay_Frag {
 
 class MainPanel : public wxPanel {
 public:
-	MainPanel(wxWindow *pParent, wxWindowID id, const wxPoint &pos = wxDefaultPosition, const wxSize &size = wxDefaultSize, long style = 0, const wxString &name = "PanelName");
+	MainPanel( Frame *_frameParent, wxWindowID id, const wxPoint &pos = wxDefaultPosition, const wxSize &size = wxDefaultSize, long style = 0, const wxString &name = "PanelName");
 	
 	void DrawFrame();
 	
@@ -29,8 +30,16 @@ public:
 	
 	enum class MouseMode {WINDOWING, VIEW_POS, _COUNT_};
 	void SetMouseMode(MouseMode to){ mouseMode = to; std::cout << int(mouseMode) << "\n"; }
+	void SetConstrainWindowing(bool value){
+		constrainXRayWindowing = value;
+		if(constrainXRayWindowing) SetXRayWindowingConstants(xRayWindowCentre, xRayWindowWidth);
+	}
+	
+	void DefaultXRayWindowingConstants();
 	
 private:
+	Frame *frameParent;
+	
 	std::shared_ptr<EVK::Devices> vkDevices {};
 	std::shared_ptr<EVK::Interface> vkInterface {};
 	
@@ -43,7 +52,7 @@ private:
 	int64_t xRayWindowCentre;
 	int64_t xRayWindowWidth;
 	PCS_XRay_Frag xRayWindowing;
-	void DefaultXRayWindowingConstants();
+	bool constrainXRayWindowing = false;
 	void SetXRayWindowingConstants(int64_t centre, int64_t width);
 	float zoomSensitivity = 8.e-4f;
 	MouseMode mouseMode = MouseMode::WINDOWING;
