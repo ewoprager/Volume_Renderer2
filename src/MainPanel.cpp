@@ -33,8 +33,6 @@
 #endif
 #endif
 
-#include <mattresses.h>
-
 #include "Frame.h"
 
 #include "MainPanel.h"
@@ -66,7 +64,6 @@ struct Vertex {
 		}
 	};
 };
-
 static constexpr uint32_t verticesN = 4;
 static const Vertex triangleVertices[verticesN] = {
 	{{ 1.0f,-1.0f}, { 1.0f, 0.0f}},
@@ -76,6 +73,38 @@ static const Vertex triangleVertices[verticesN] = {
 };
 static constexpr uint32_t indicesN = 6;
 static uint32_t triangleIndices[indicesN] = {0, 1, 2, 0, 2, 3};
+
+
+struct TestVertex {
+	vec<2> position;
+	
+	constexpr static const VkPipelineVertexInputStateCreateInfo attributeInfo = {
+		VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+		nullptr,
+		NULL,
+		1,
+		(VkVertexInputBindingDescription[1]){
+			{
+				0, // binding
+				8, // stride
+				VK_VERTEX_INPUT_RATE_VERTEX // input rate
+			}
+		},
+		1,
+		(VkVertexInputAttributeDescription[1]){
+			{
+				0, 0, VK_FORMAT_R32G32_SFLOAT, 0
+			}
+		}
+	};
+};
+static constexpr uint32_t testVerticesN = 3;
+static const TestVertex testTriangleVertices[verticesN] = {
+	{{ 0.5f, 0.5f}},
+	{{ 0.0f,-0.5f}},
+	{{-0.5f, 0.5f}}
+};
+
 
 BEGIN_EVENT_TABLE(MainPanel, wxPanel)
 EVT_MOUSE_EVENTS(MainPanel::OnMouse)
@@ -96,8 +125,12 @@ MainPanel::MainPanel(Frame *_frameParent, wxWindowID id, const wxPoint &pos, con
 	
 	vkInterface = ConstructVkInterface();
 	
-	vkInterface->FillVertexBuffer(0, (void *)triangleVertices, sizeof(triangleVertices));
+	vkInterface->UpdateBufferedRenderPass(int(BufferedRenderPass::DRR));
+	
+	vkInterface->FillVertexBuffer(int(VertexBuffer::XRAY), (void *)triangleVertices, sizeof(triangleVertices));
 	vkInterface->FillIndexBuffer(0, triangleIndices, indicesN);
+	
+	vkInterface->FillVertexBuffer(int(VertexBuffer::DRR), (void *)testTriangleVertices, sizeof(testTriangleVertices));
 }
 
 void MainPanel::OnPaint(wxPaintEvent &event){
@@ -163,16 +196,32 @@ void MainPanel::OnMouse(wxMouseEvent &event){
 }
 
 void MainPanel::DrawFrame(){
+	
+	std::vector<VkClearValue> clearVals = {
+		{
+			.color = {{0.0f, 0.0f, 0.0f, 0.0f}}
+		},
+		{
+			.depthStencil = {1.0f, 0}
+		}
+	};
+	
 	if(vkInterface->BeginFrame()){
+		
+		vkInterface->CmdBeginBufferedRenderPass(int(BufferedRenderPass::DRR), VK_SUBPASS_CONTENTS_INLINE, clearVals);
+		vkInterface->GP(int(GraphicsPipeline::DRR)).Bind();
+		vkInterface->CmdBindVertexBuffer(0, int(VertexBuffer::DRR));
+		vkInterface->CmdDraw(testVerticesN);
+		vkInterface->CmdEndRenderPass();
 		
 		vkInterface->BeginFinalRenderPass({{0.0f, 0.0f, 0.0f, 1.0f}});
 		
 		if(currentXRay){
-			vkInterface->GP(0).Bind();
-			vkInterface->GP(0).BindDescriptorSets(0, 1);
-			vkInterface->GP(0).CmdPushConstants(0, &xRayTransform);
-			vkInterface->GP(0).CmdPushConstants(1, &xRayWindowing);
-			vkInterface->CmdBindVertexBuffer(0, 0);
+			vkInterface->GP(int(GraphicsPipeline::MAIN)).Bind();
+			vkInterface->GP(int(GraphicsPipeline::MAIN)).BindDescriptorSets(0, 1);
+			vkInterface->GP(int(GraphicsPipeline::MAIN)).CmdPushConstants(0, &xRayTransform);
+			vkInterface->GP(int(GraphicsPipeline::MAIN)).CmdPushConstants(1, &xRayWindowing);
+			vkInterface->CmdBindVertexBuffer(0, int(VertexBuffer::XRAY));
 			vkInterface->CmdBindIndexBuffer(0, VK_INDEX_TYPE_UINT32);
 			vkInterface->CmdDrawIndexed(indicesN);
 		}
@@ -221,7 +270,7 @@ void MainPanel::SetXRayWindowingConstants(int64_t centre, int64_t width){
 }
 
 void MainPanel::LoadXRay(Data::XRay xRay){
-	vkInterface->BuildDataImage(0, (EVK::DataImageBlueprint){
+	vkInterface->BuildDataImage(int(Image::XRAY), (EVK::DataImageBlueprint){
 		.data = xRay.data.data(),
 		xRay.size.x,
 		xRay.size.y,
@@ -229,7 +278,7 @@ void MainPanel::LoadXRay(Data::XRay xRay){
 		Data::MonochromeVKFormatFromImageDepth(xRay.imageDepth),
 		false
 	});
-	vkInterface->GP(0).UpdateDescriptorSets();
+	vkInterface->GP(int(GraphicsPipeline::MAIN)).UpdateDescriptorSets();
 	xRayTransform.xraySize = static_cast<vec<2>>(xRay.size);
 	xRayTransform.viewPos = (vec<2>){0.0f, 0.0f};
 	xRayTransform.zoom = 1.0f;
@@ -378,8 +427,15 @@ std::shared_ptr<EVK::Interface> MainPanel::ConstructVkInterface(){
 			.type = EVK::DescriptorType::combinedImageSampler,
 			.binding = 0,
 			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-			.indicesExtra = {0}, // index of XRay image
-			.indicesExtra2 = {0}, // index of main sampler
+			.indicesExtra = {int(Image::XRAY)},
+			.indicesExtra2 = {0} // index of main sampler
+		},
+		(EVK::DescriptorBlueprint){
+			.type = EVK::DescriptorType::combinedImageSampler,
+			.binding = 1,
+			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+			.indicesExtra = {int(Image::DRR)},
+			.indicesExtra2 = {0} // index of main sampler
 		}
 	};
 	
@@ -423,9 +479,34 @@ std::shared_ptr<EVK::Interface> MainPanel::ConstructVkInterface(){
 		.primitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
 	};
 	
+	std::vector<VkPipelineShaderStageCreateInfo> drrShaderStages = shaderStages;
+	drrShaderStages[0].module = vkDevices->CreateShaderModule("drr.vert.spv");
+	drrShaderStages[1].module = vkDevices->CreateShaderModule("drr.frag.spv");
+	colourBlending.attachmentCount = 1;
+	depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+	dynamicState.dynamicStateCount = 2;
+	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	rasterizer.cullMode = VK_CULL_MODE_NONE;//VK_CULL_MODE_BACK_BIT;
+	rasterizer.depthBiasEnable = VK_FALSE;
+	EVK::GraphicsPipelineBlueprint pbDrr = {
+		.pipelineBlueprint.descriptorSetBlueprints = {},
+		.pipelineBlueprint.pushConstantRanges = {},
+		.shaderStageCIs = drrShaderStages,
+		.vertexInputStateCI = TestVertex::attributeInfo,
+//		.vertexInputStateCI = {VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, 0, 0, nullptr, 0, nullptr},
+		.rasterisationStateCI = rasterizer,
+		.multisampleStateCI = multisampling,
+		.colourBlendStateCI = colourBlending,
+		.depthStencilStateCI = depthStencil,
+		.dynamicStateCI = dynamicState,
+		.bufferedRenderPassIndex = {int(BufferedRenderPass::DRR)},
+		.layeredBufferedRenderPassIndex = {},
+		.primitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+	};
+	
 	EVK::InterfaceBlueprint nvi {*vkDevices};
 	
-	nvi.graphicsPipelinesN = 1;
+	nvi.graphicsPipelinesN = int(GraphicsPipeline::_COUNT_);
 	nvi.computePipelinesN = 0;
 	nvi.uniformBufferObjectsN = 0;
 	nvi.storageBufferObjectsN = 0;
@@ -450,15 +531,86 @@ std::shared_ptr<EVK::Interface> MainPanel::ConstructVkInterface(){
 	};
 	nvi.samplerBlueprints = {samplerInfo};
 	
+	nvi.bufferedRenderPassesN = int(BufferedRenderPass::_COUNT_);
 	nvi.layeredBufferedRenderPassesN = 0;
-	nvi.bufferedRenderPassesN = 0;
-	nvi.vertexBuffersN = 1;
+	nvi.vertexBuffersN = int(VertexBuffer::_COUNT_);
 	nvi.indexBuffersN = 1;
-	nvi.imagesN = 1;
+	nvi.imagesN = int(Image::_COUNT_);
 	
 	std::shared_ptr<EVK::Interface> ret = std::make_shared<EVK::Interface>(nvi);
 	
-	ret->BuildGraphicsPipeline(0, pbMain);
+	VkAttachmentDescription colourAttachment{
+		.format = DRR_IMAGE_FORMAT,
+		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+		.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+		.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+	};
+	VkAttachmentReference colourAttachmentRef{
+		.attachment = 0,
+		.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+	};
+	VkSubpassDescription subpass{
+		.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+		.colorAttachmentCount = 1,
+		.pColorAttachments = &colourAttachmentRef
+	};
+	
+	// Use subpass dependencies for layout transitions
+	VkSubpassDependency bDependencies[2];
+	bDependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+	bDependencies[0].dstSubpass = 0;
+	bDependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	bDependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	bDependencies[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	bDependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	bDependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+	bDependencies[1].srcSubpass = 0;
+	bDependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+	bDependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	bDependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	bDependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	bDependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	bDependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+	ret->BuildBufferedRenderPass(int(BufferedRenderPass::DRR), (EVK::BufferedRenderPassBlueprint){
+		.renderPassCI = (VkRenderPassCreateInfo){
+			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+			.attachmentCount = 1,
+			.pAttachments = &colourAttachment,
+			.subpassCount = 1,
+			.pSubpasses = &subpass,
+			.dependencyCount = 2,
+			.pDependencies = bDependencies
+		},
+		.targetTextureImageIndices = {int(Image::DRR)},
+		.width = 300,
+		.height = 300
+	});
+	
+	ret->BuildGraphicsPipeline(int(GraphicsPipeline::MAIN), pbMain);
+	ret->BuildGraphicsPipeline(int(GraphicsPipeline::DRR), pbDrr);
+	
+	VkImageCreateInfo drrImageCI = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+		.imageType = VK_IMAGE_TYPE_2D,
+		.extent = {
+			.width = 300,
+			.height = 300,
+			.depth = 1
+		},
+		.mipLevels = 1,
+		.arrayLayers = 1,
+		.format = DRR_IMAGE_FORMAT,
+		.tiling = VK_IMAGE_TILING_OPTIMAL, // VK_IMAGE_TILING_LINEAR for row-major order if we want to access texels in the memory of the image
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.sharingMode = VK_SHARING_MODE_EXCLUSIVE
+	};
+	ret->BuildTextureImage(int(Image::DRR), {drrImageCI, VK_IMAGE_VIEW_TYPE_2D, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT});
 	
 	return ret;
 }

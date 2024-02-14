@@ -15,14 +15,21 @@ private:
 	Frame *frameParent;
 	
 	void OnLoadXRay(wxCommandEvent &event);
+	void OnXRayGaussianSlider(wxCommandEvent &event);
+	void OnXRayGaussianEnter(wxCommandEvent &event);
+	void OnXRayGaussianDefault(wxCommandEvent &event);
 	
-	std::shared_ptr<wxBoxSizer> mySizer;
+	wxBoxSizer *mySizer;
 	
-	std::shared_ptr<wxStaticBoxSizer> xRaySizer;
-	std::shared_ptr<wxStaticText> xRayTitleText;
-	std::shared_ptr<wxButton> loadXRayButton;
-	std::shared_ptr<wxStaticText> xRayInfoText;
+	wxStaticBoxSizer *xRaySizer;
+	wxStaticText *xRayTitleText;
+	wxButton *loadXRayButton;
+	wxStaticText *xRayInfoText;
+	wxBoxSizer *xRayGaussianSizer;
+	wxSlider *xRayGaussianSlider;
+	wxTextCtrl *xRayGaussianTextCtrl;
+	wxButton *xRayGaussianDefaultButton;
 	
-	std::shared_ptr<wxStaticBoxSizer> placeholderSizer1;
-	std::shared_ptr<wxStaticBoxSizer> placeholderSizer2;
+	wxStaticBoxSizer *placeholderSizer1;
+	wxStaticBoxSizer *placeholderSizer2;
 };

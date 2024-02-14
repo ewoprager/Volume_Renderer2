@@ -63,9 +63,6 @@ bool App::OnInit(){
         return false;
     }
     
-    mainFrame->SetMinSize(wxSize(400,400));
-    mainFrame->Show(true);
-    
     return true;
 }
 

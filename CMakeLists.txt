@@ -14,7 +14,7 @@ function(add_shader TARGET SHADER)
     # Add a custom command to compile GLSL to SPIR-V.
 	get_filename_component(current-output-dir "${current-output-path}" DIRECTORY)
 	file(MAKE_DIRECTORY "${current-output-dir}")
-
+	
     add_custom_command(
            OUTPUT "${current-output-path}"
            COMMAND "/Users/eprager/VulkanSDK/1.3.268.1/macOS/bin/glslc" -o "${current-output-path}" "${current-shader-path}"
@@ -174,13 +174,14 @@ target_link_libraries(${PROJECT_NAME}
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 20)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
 
-foreach(shader "${VERTEX_SHADERS}")
+
+foreach(shader ${VERTEX_SHADERS})
 	cmake_path(GET shader FILENAME shader_filename)
-	add_shader(${PROJECT_NAME} "${shader_filename}")
+	add_shader(${PROJECT_NAME} ${shader_filename})
 endforeach()
-foreach(shader "${FRAGMENT_SHADERS}")
+foreach(shader ${FRAGMENT_SHADERS})
 	cmake_path(GET shader FILENAME shader_filename)
-	add_shader(${PROJECT_NAME} "${shader_filename}")
+	add_shader(${PROJECT_NAME} ${shader_filename})
 endforeach()
 
 #add_custom_command ( TARGET ${PROJECT_NAME} POST_BUILD

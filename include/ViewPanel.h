@@ -17,20 +17,20 @@ private:
 	void OnResetWindowing(wxCommandEvent &event);
 	void OnSwitchWindowingConstrained(wxCommandEvent &event);
 	
-	std::shared_ptr<wxBoxSizer> mainSizer;
+	wxBoxSizer *mainSizer;
 	
-	std::shared_ptr<wxBoxSizer> topSizer;
-	std::shared_ptr<wxStaticText> mouseModeLabel;
-	std::shared_ptr<wxChoice> mouseModeChoice;
+	wxBoxSizer *topSizer;
+	wxStaticText *mouseModeLabel;
+	wxChoice *mouseModeChoice;
 	
-	std::shared_ptr<wxBoxSizer> bottomSizer;
+	wxBoxSizer *bottomSizer;
 	
-	std::shared_ptr<wxStaticBoxSizer> windowingSizer;
-	std::shared_ptr<wxStaticText> windowingTitleText;
-	std::shared_ptr<wxStaticText> windowingInfoText;
-	std::shared_ptr<wxCheckBox> windowingConstrainedBox;
-	std::shared_ptr<wxButton> windowingResetButton;
+	wxStaticBoxSizer *windowingSizer;
+	wxStaticText *windowingTitleText;
+	wxStaticText *windowingInfoText;
+	wxCheckBox *windowingConstrainedBox;
+	wxButton *windowingResetButton;
 	
-	std::shared_ptr<wxStaticBoxSizer> placeholderSizer1;
-	std::shared_ptr<wxStaticBoxSizer> placeholderSizer2;
+	wxStaticBoxSizer *placeholderSizer1;
+	wxStaticBoxSizer *placeholderSizer2;
 };

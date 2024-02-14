@@ -2,7 +2,6 @@
 
 #include "wx/wx.h"
 #include <evk/Base.hpp>
-#include <mattresses.h>
 
 #include "guistructs.h"
 
@@ -29,7 +28,7 @@ public:
 	void LoadXRay(Data::XRay xRay);
 	
 	enum class MouseMode {WINDOWING, VIEW_POS, _COUNT_};
-	void SetMouseMode(MouseMode to){ mouseMode = to; std::cout << int(mouseMode) << "\n"; }
+	void SetMouseMode(MouseMode to){ mouseMode = to; }
 	void SetConstrainWindowing(bool value){
 		constrainXRayWindowing = value;
 		if(constrainXRayWindowing) SetXRayWindowingConstants(xRayWindowCentre, xRayWindowWidth);
@@ -42,6 +41,19 @@ private:
 	
 	std::shared_ptr<EVK::Devices> vkDevices {};
 	std::shared_ptr<EVK::Interface> vkInterface {};
+	enum class Image {
+		XRAY, DRR, _COUNT_
+	};
+	enum class BufferedRenderPass {
+		DRR, _COUNT_
+	};
+	enum class GraphicsPipeline {
+		MAIN, DRR, _COUNT_
+	};
+	enum class VertexBuffer {
+		XRAY, DRR, _COUNT_
+	};
+	static constexpr VkFormat DRR_IMAGE_FORMAT = VK_FORMAT_R16_UNORM;
 	
 	struct CurrentXRay {
 		int64_t valueMax;

@@ -1,35 +1,56 @@
 #include <strstream>
+//#include <format> // waiting for Xcode 15.3 which supports std::format
 
 #include "Frame.h"
 
 #include "ControlPanel.h"
 
-ControlPanel::ControlPanel(Frame *_frameParent, wxWindowID id) : wxScrolledWindow(_frameParent, id, wxDefaultPosition, wxDefaultSize, wxSUNKEN_BORDER | wxHSCROLL | wxVSCROLL){
+ControlPanel::ControlPanel(Frame *_frameParent, wxWindowID id) : wxScrolledWindow(_frameParent, id, wxDefaultPosition, wxDefaultSize, wxVSCROLL){
+	
+	SetScrollRate(-1, 10);
+	SetMinSize(wxSize{400, 300});
 	
 	frameParent = _frameParent;
 	
-	mySizer = std::make_shared<wxBoxSizer>(wxVERTICAL);
-	SetSizer(mySizer.get());
+	mySizer = new wxBoxSizer(wxVERTICAL);
+	SetSizer(mySizer);
 	
 	// xRay panel
-	xRaySizer = std::make_shared<wxStaticBoxSizer>(wxVERTICAL, this);
-	mySizer->Add(xRaySizer.get(), 1, wxTOP | wxLEFT | wxRIGHT | wxEXPAND, UI_SPACING);
+	xRaySizer = new wxStaticBoxSizer(wxVERTICAL, this);
+	mySizer->Add(xRaySizer, 1, wxTOP | wxLEFT | wxRIGHT | wxEXPAND, UI_SPACING);
 	
-	xRayTitleText = std::make_shared<wxStaticText>(this, wxID_ANY, "X-Ray", wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
-	xRaySizer->Add(xRayTitleText.get(), 0, wxALL | wxEXPAND, UI_SPACING);
+	xRayTitleText = new wxStaticText(this, wxID_ANY, "X-Ray", wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
+	xRaySizer->Add(xRayTitleText, 0, wxALL | wxALIGN_CENTRE, UI_SPACING);
 	
-	loadXRayButton = std::make_shared<wxButton>(this, wxID_ANY, "Load X-Ray DICOM");
-	xRaySizer->Add(loadXRayButton.get(), 1, wxALL | wxEXPAND, UI_SPACING);
+	loadXRayButton = new wxButton(this, wxID_ANY, "Load X-Ray DICOM");
+	xRaySizer->Add(loadXRayButton, 1, wxALL | wxALIGN_CENTRE, UI_SPACING);
 	Bind(wxEVT_BUTTON, &ControlPanel::OnLoadXRay, this, loadXRayButton->GetId());
 	
-	xRayInfoText = std::make_shared<wxStaticText>(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT);
-	xRaySizer->Add(xRayInfoText.get(), 1, wxALL | wxEXPAND, UI_SPACING);
+	xRayInfoText = new wxStaticText(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT);
+	xRaySizer->Add(xRayInfoText, 1, wxALL | wxALIGN_CENTRE, UI_SPACING);
+	
+	xRayGaussianSizer = new wxBoxSizer(wxHORIZONTAL);
+	xRaySizer->Add(xRayGaussianSizer, 1, wxEXPAND);
+	
+	xRayGaussianSlider = new wxSlider(this, wxID_ANY, frameParent->GetXRayGaussianManager().IntDefault(), 0, frameParent->GetXRayGaussianManager().precision);
+	xRayGaussianSizer->Add(xRayGaussianSlider, 5, wxALL | wxALIGN_CENTRE, UI_SPACING);
+	Bind(wxEVT_SLIDER, &ControlPanel::OnXRayGaussianSlider, this, xRayGaussianSlider->GetId());
+	
+	char str[10];
+	snprintf(str, 10, "%.2f", frameParent->GetXRayGaussianManager().dfault);
+	xRayGaussianTextCtrl = new wxTextCtrl(this, wxID_ANY, wxString(str), wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
+	xRayGaussianSizer->Add(xRayGaussianTextCtrl, 1, wxALL | wxFIXED_MINSIZE | wxALIGN_CENTRE, UI_SPACING);
+	Bind(wxEVT_TEXT_ENTER, &ControlPanel::OnXRayGaussianEnter, this, xRayGaussianTextCtrl->GetId());
+	
+	xRayGaussianDefaultButton = new wxButton(this, wxID_ANY, "Reset sigma to default");
+	xRaySizer->Add(xRayGaussianDefaultButton, 1, wxALL | wxALIGN_CENTRE, UI_SPACING);
+	Bind(wxEVT_BUTTON, &ControlPanel::OnXRayGaussianDefault, this, xRayGaussianDefaultButton->GetId());
 	
 	// placeholders
-	placeholderSizer1 = std::make_shared<wxStaticBoxSizer>(wxVERTICAL, this);
-	mySizer->Add(placeholderSizer1.get(), 1, wxTOP | wxLEFT | wxRIGHT | wxEXPAND, UI_SPACING);
-	placeholderSizer2 = std::make_shared<wxStaticBoxSizer>(wxVERTICAL, this);
-	mySizer->Add(placeholderSizer2.get(), 1, wxALL | wxEXPAND, UI_SPACING);
+	placeholderSizer1 = new wxStaticBoxSizer(wxVERTICAL, this);
+	mySizer->Add(placeholderSizer1, 1, wxTOP | wxLEFT | wxRIGHT | wxEXPAND, UI_SPACING);
+	placeholderSizer2 = new wxStaticBoxSizer(wxVERTICAL, this);
+	mySizer->Add(placeholderSizer2, 1, wxALL | wxEXPAND, UI_SPACING);
 }
 
 void ControlPanel::SetXRayInfo(const Data::XRay &xRay){
@@ -41,4 +62,25 @@ void ControlPanel::SetXRayInfo(const Data::XRay &xRay){
 
 void ControlPanel::OnLoadXRay(wxCommandEvent &event){
 	frameParent->OnOpenXray(event);
+}
+
+void ControlPanel::OnXRayGaussianSlider(wxCommandEvent &event){
+	const float newVal = frameParent->GetXRayGaussianManager().IntToFloat(event.GetInt());
+	char str[10];
+	snprintf(str, 10, "%.2f", newVal);
+	xRayGaussianTextCtrl->SetValue(wxString(str));
+	frameParent->UpdateXRayGaussian(newVal);
+}
+void ControlPanel::OnXRayGaussianEnter(wxCommandEvent &event){
+	const float newVal = std::stof(std::string(xRayGaussianTextCtrl->GetValue()));
+	xRayGaussianSlider->SetValue(frameParent->GetXRayGaussianManager().FloatToInt(newVal));
+	frameParent->UpdateXRayGaussian(newVal);
+}
+void ControlPanel::OnXRayGaussianDefault(wxCommandEvent &event){
+	const float newVal = frameParent->GetXRayGaussianManager().dfault;
+	char str[10];
+	snprintf(str, 10, "%.2f", newVal);
+	xRayGaussianTextCtrl->SetValue(wxString(str));
+	xRayGaussianSlider->SetValue(frameParent->GetXRayGaussianManager().FloatToInt(newVal));
+	frameParent->UpdateXRayGaussian(newVal);
 }

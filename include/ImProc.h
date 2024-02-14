@@ -4,6 +4,6 @@
 
 namespace Data {
 
-void GaussianBlur(XRay &xray);
+void GaussianBlur(XRay &xray, double sigma);
 
 } // namespace Data

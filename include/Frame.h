@@ -9,36 +9,61 @@
 #include "Data.h"
 
 class Frame : public wxFrame {
+private:
+	struct XRayGaussianManager;
+	
 public:
-    Frame(wxWindow *parent, const wxString &title, const wxPoint &pos, const wxSize &size);
-    virtual ~Frame();
-
+	Frame(wxWindow *parent, const wxString &title, const wxPoint &pos, const wxSize &size);
+	virtual ~Frame();
+	
 	void Idle();
-
+	
 	bool CheckValidPanel() const { return bool(mainPanel); }
 	
-	MainPanel *GetMainPanel() const { return mainPanel.get(); }
-	ViewPanel *GetViewPanel() const { return viewPanel.get(); }
+	MainPanel *GetMainPanel() const { return mainPanel; }
+	ViewPanel *GetViewPanel() const { return viewPanel; }
 	
 	void OnOpenXray(wxCommandEvent &event);
+	void UpdateXRayGaussian(float newSigma);
+	
+	const XRayGaussianManager &GetXRayGaussianManager() const { return xRayGaussianManager; }
 	
 private:
-	std::shared_ptr<wxBoxSizer> mainSizer;
-	std::shared_ptr<ControlPanel> controlPanel;
-	std::shared_ptr<wxBoxSizer> rightSizer;
-	std::shared_ptr<MainPanel> mainPanel;
-	std::shared_ptr<ViewPanel> viewPanel;
+	wxBoxSizer *mainSizer;
+	ControlPanel *controlPanel;
+	wxBoxSizer *rightSizer;
+	MainPanel *mainPanel;
+	ViewPanel *viewPanel;
 	
 	std::optional<Data::XRay> xRay;
 	
-    //void OnResize(wxSizeEvent& event);
-    void OnCreate(wxPaintEvent &event);
-    
-    bool _first_paint_call;
-
-    void OnClose(wxCloseEvent &event);
-    void OnQuit(wxCommandEvent &event);
-    void OnAbout(wxCommandEvent &event);
+	//void OnResize(wxSizeEvent& event);
+	void OnCreate(wxPaintEvent &event);
+	
+	bool _first_paint_call;
+	
+	void OnClose(wxCloseEvent &event);
+	void OnQuit(wxCommandEvent &event);
+	void OnAbout(wxCommandEvent &event);
+	
+	struct XRayGaussianManager {
+		static constexpr int precision = 1000;
+		
+		float low = 0.0f;
+		float high = 5.0f;
+		float dfault = 1.78f;
+		
+		int FloatToInt(float f) const {
+			return int(roundf(float(precision) * (f - low) / (high - low)));
+		}
+		float IntToFloat(int i) const {
+			return low + (high - low) * float(i) / float(precision);
+		}
+		int IntDefault() const {
+			return IntToFloat(dfault);
+		}
+	};
+	XRayGaussianManager xRayGaussianManager {};
 	
     DECLARE_EVENT_TABLE()
 };

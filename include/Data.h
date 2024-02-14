@@ -6,7 +6,6 @@
 #include <dcmtk/dcmdata/dctk.h>
 #include <dcmtk/dcmimgle/dcmimage.h>
 #include <vulkan/vulkan.h>
-#include <mattresses.h>
 
 #include "Header.h"
 
