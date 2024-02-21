@@ -46,11 +46,23 @@ ControlPanel::ControlPanel(Frame *_frameParent, wxWindowID id) : wxScrolledWindo
 	xRaySizer->Add(xRayGaussianDefaultButton, 1, wxALL | wxALIGN_CENTRE, UI_SPACING);
 	Bind(wxEVT_BUTTON, &ControlPanel::OnXRayGaussianDefault, this, xRayGaussianDefaultButton->GetId());
 	
+	// CT panel
+	ctSizer = new wxStaticBoxSizer(wxVERTICAL, this);
+	mySizer->Add(ctSizer, 1, wxTOP | wxLEFT | wxRIGHT | wxEXPAND, UI_SPACING);
+	
+	ctTitleText = new wxStaticText(this, wxID_ANY, "CT", wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER_HORIZONTAL);
+	ctSizer->Add(ctTitleText, 0, wxALL | wxALIGN_CENTRE, UI_SPACING);
+	
+	loadCTButton = new wxButton(this, wxID_ANY, "Load CT DICOM");
+	ctSizer->Add(loadCTButton, 1, wxALL | wxALIGN_CENTRE, UI_SPACING);
+	Bind(wxEVT_BUTTON, &ControlPanel::OnLoadCT, this, loadCTButton->GetId());
+	
+	ctInfoText = new wxStaticText(this, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT);
+	ctSizer->Add(ctInfoText, 1, wxALL | wxALIGN_CENTRE, UI_SPACING);
+	
 	// placeholders
-	placeholderSizer1 = new wxStaticBoxSizer(wxVERTICAL, this);
-	mySizer->Add(placeholderSizer1, 1, wxTOP | wxLEFT | wxRIGHT | wxEXPAND, UI_SPACING);
-	placeholderSizer2 = new wxStaticBoxSizer(wxVERTICAL, this);
-	mySizer->Add(placeholderSizer2, 1, wxALL | wxEXPAND, UI_SPACING);
+	placeholderSizer = new wxStaticBoxSizer(wxVERTICAL, this);
+	mySizer->Add(placeholderSizer, 1, wxTOP | wxLEFT | wxRIGHT | wxEXPAND, UI_SPACING);
 }
 
 void ControlPanel::SetXRayInfo(const Data::XRay &xRay){
@@ -59,9 +71,18 @@ void ControlPanel::SetXRayInfo(const Data::XRay &xRay){
 	xRayInfoText->SetLabel(stream.str());
 	frameParent->Layout();
 }
+void ControlPanel::SetCTInfo(const Data::CT &ct){
+	std::stringstream stream {};
+	stream << "Size: [" << ct.size.x << " x " << ct.size.y << " x " << ct.size.z << "]\nPixel spacing: " << ct.pixelSpacing.x << ", " << ct.pixelSpacing.y << ", " << ct.pixelSpacing.z;
+	ctInfoText->SetLabel(stream.str());
+	frameParent->Layout();
+}
 
 void ControlPanel::OnLoadXRay(wxCommandEvent &event){
 	frameParent->OnOpenXray(event);
+}
+void ControlPanel::OnLoadCT(wxCommandEvent &event){
+	frameParent->OnOpenCT(event);
 }
 
 void ControlPanel::OnXRayGaussianSlider(wxCommandEvent &event){

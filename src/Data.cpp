@@ -1,4 +1,6 @@
 #include <string>
+#include <filesystem>
+#include <set>
 
 #include <evk/Base.hpp>
 
@@ -7,6 +9,8 @@
 namespace Data {
 
 namespace DICOM {
+
+void PrintType(DcmDataset *dataset, const DcmTagKey &key);
 
 std::vector<std::string> SplitString(std::string str){
 	static const std::string delimiter = "\\";
@@ -124,6 +128,7 @@ std::optional<XRay> LoadXRay(const char *filename){
 		ret.size.x = cols.value();
 	}
 	
+	// image data
 	std::unique_ptr<DicomImage> image = std::make_unique<DicomImage>(filename);
 	if(!image){
 		std::cerr << "Error: image from file " << filename << " is loaded as NULL\n";
@@ -152,6 +157,251 @@ std::optional<XRay> LoadXRay(const char *filename){
 	}
 	return ret;
 }
+
+std::optional<CT> LoadCT(const char *pathname){
+	
+	const std::filesystem::path directory = pathname;
+	if(!std::filesystem::is_directory(directory)){
+		return {};
+	}
+	
+	std::set<std::filesystem::path> sortedFiles {};
+	for(const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(directory)){
+		sortedFiles.insert(entry.path());
+	}
+	
+	if(sortedFiles.size() < 3){
+		// ToDo: Make it wxWidgets message box
+		std::cout << "Fewer than 3 files in CT directory.\n";
+		return {};
+	}
+	
+	CT ret;
+	ret.size.z = sortedFiles.size();
+	vec<3> imagePositionPatient;
+	vec<6> imageOrientationPatient;
+	bool orderReversed;
+	size_t sliceSize;
+	
+	std::set<std::filesystem::path>::const_iterator it = sortedFiles.begin();
+	{ // first
+		DcmFileFormat fileformat;
+		OFCondition status = fileformat.loadFile(it->string());
+		if(!status.good()){
+			std::cerr << "Error: cannot read DICOM file '" << it->string() << "': " << status.text() << "\n";
+			return {};
+		}
+		{ // pixel spacing
+			std::optional<std::vector<float>> pixelSpacing = ReadFloats_OFStringArray(fileformat.getDataset(), DCM_PixelSpacing, 2);
+			if(!pixelSpacing){
+				std::cerr << "Error: cannot read pixel spacing from file " << it->string() << "\n";
+				return {};
+			}
+			ret.pixelSpacing.xy_r() = {pixelSpacing.value()[1], pixelSpacing.value()[0]}; // flipping to x,y rather than y,x
+		}
+		{ // image position patient
+			std::optional<std::vector<float>> ipp = ReadFloats_OFStringArray(fileformat.getDataset(), DCM_ImagePositionPatient, 3);
+			if(!ipp){
+				std::cerr << "Error: cannot imagePositionPatient spacing from file " << it->string() << "\n";
+				return {};
+			}
+			imagePositionPatient = *reinterpret_cast<vec<3> *>(ipp->data());
+		}
+		{ // image orientation patient
+			std::optional<std::vector<float>> iop = ReadFloats_OFStringArray(fileformat.getDataset(), DCM_ImageOrientationPatient, 6);
+			if(!iop){
+				std::cerr << "Error: cannot read imageOrientationPatient from file " << it->string() << "\n";
+				return {};
+			}
+			imageOrientationPatient = *reinterpret_cast<vec<6> *>(iop->data());
+		}
+		{ // rows
+			std::optional<uint16_t> rows = ReadInt_Uint16(fileformat.getDataset(), DCM_Rows);
+			if(!rows){
+				std::cerr << "Error: cannot read no. of rows from file " << it->string() << "\n";
+				return {};
+			}
+			ret.size.y = rows.value();
+		}
+		{ // columns
+			std::optional<uint16_t> cols = ReadInt_Uint16(fileformat.getDataset(), DCM_Columns);
+			if(!cols){
+				std::cerr << "Error: cannot read no. of cols from file " << it->string() << "\n";
+				return {};
+			}
+			ret.size.x = cols.value();
+		}
+		{ // image data
+			std::unique_ptr<DicomImage> image = std::make_unique<DicomImage>(it->string().data());
+			if(!image){
+				std::cerr << "Error: image from file " << it->string() << " is loaded as NULL\n";
+				return {};
+			}
+			if(image->getStatus() != EIS_Normal){
+				std::cerr << "Error: cannot load DICOM image from file " << it->string() << ": " << DicomImage::getString(image->getStatus()) << "\n";
+				return {};
+			}
+			if(!image->isMonochrome()){
+				std::cerr << "Error: X-Ray DICOM image loaded from " << it->string() << " is not monochrome\n";
+				return {};
+			}
+			image->setMinMaxWindow();
+			sliceSize = image->getOutputDataSize();
+			const size_t N = ret.size.x * ret.size.y;
+			if(!sliceSize || sliceSize % N){
+				std::cerr << "Error: DICOM image size from " << it->string() << " is inconsistent with Rows * Columns\n";
+				return {};
+			}
+			ret.imageDepth = sliceSize / N;
+			ret.data = std::vector<uint8_t>(sliceSize * (sortedFiles.size() + 1));
+			if(!image->getOutputData(ret.data.data(), sliceSize, 8 * int(ret.imageDepth))){
+				std::cerr << "Error: cannot read DICOM image data from " << it->string() << "\n";
+				return {};
+			}
+		}
+	}
+	
+	++it;
+	{ // second
+		DcmFileFormat fileformat;
+		OFCondition status = fileformat.loadFile(it->string());
+		if(!status.good()){
+			std::cerr << "Error: cannot read DICOM file '" << it->string() << "': " << status.text() << "\n";
+			return {};
+		}
+		{ // pixel spacing
+			std::optional<std::vector<float>> pixelSpacing = ReadFloats_OFStringArray(fileformat.getDataset(), DCM_PixelSpacing, 2);
+			if(!pixelSpacing){
+				std::cerr << "Error: cannot read pixel spacing from file " << it->string() << "\n";
+				return {};
+			}
+			assert(ret.pixelSpacing.xy() == vec<2>({pixelSpacing.value()[1], pixelSpacing.value()[0]})); // flipping to x,y rather than y,x
+		}
+		{ // images position patient
+			std::optional<std::vector<float>> ipp = ReadFloats_OFStringArray(fileformat.getDataset(), DCM_ImagePositionPatient, 3);
+			if(!ipp){
+				std::cerr << "Error: cannot imagePositionPatient spacing from file " << it->string() << "\n";
+				return {};
+			}
+			const vec<3> _ipp = *reinterpret_cast<vec<3> *>(ipp->data());
+			assert(_ipp.xy() == imagePositionPatient.xy());
+			ret.pixelSpacing.z = _ipp.z - imagePositionPatient.z;
+			orderReversed = ret.pixelSpacing.z < 0.0f;
+			if(orderReversed) ret.pixelSpacing.z = -ret.pixelSpacing.z;
+		}
+		{ // rows
+			std::optional<uint16_t> rows = ReadInt_Uint16(fileformat.getDataset(), DCM_Rows);
+			if(!rows){
+				std::cerr << "Error: cannot read no. of rows from file " << it->string() << "\n";
+				return {};
+			}
+			assert(ret.size.y == rows.value());
+		}
+		{ // columns
+			std::optional<uint16_t> cols = ReadInt_Uint16(fileformat.getDataset(), DCM_Columns);
+			if(!cols){
+				std::cerr << "Error: cannot read no. of cols from file " << it->string() << "\n";
+				return {};
+			}
+			assert(ret.size.x == cols.value());
+		}
+		{ // image data
+			std::unique_ptr<DicomImage> image = std::make_unique<DicomImage>(it->string().data());
+			if(!image){
+				std::cerr << "Error: image from file " << it->string() << " is loaded as NULL\n";
+				return {};
+			}
+			if(image->getStatus() != EIS_Normal){
+				std::cerr << "Error: cannot load DICOM image from file " << it->string() << ": " << DicomImage::getString(image->getStatus()) << "\n";
+				return {};
+			}
+			if(!image->isMonochrome()){
+				std::cerr << "Error: X-Ray DICOM image loaded from " << it->string() << " is not monochrome\n";
+				return {};
+			}
+			image->setMinMaxWindow();
+			assert(image->getOutputDataSize() == sliceSize);
+			if(!image->getOutputData(ret.data.data() + sliceSize, sliceSize, 8 * int(ret.imageDepth))){
+				std::cerr << "Error: cannot read DICOM image data from " << it->string() << "\n";
+				return {};
+			}
+		}
+	}
+	
+	const vec<3> X0 = *reinterpret_cast<vec<3> *>(&imageOrientationPatient);
+	const vec<3> Y0 = *reinterpret_cast<vec<3> *>(&imageOrientationPatient[3]);
+	const vec<3> spaceDimensions = (static_cast<vec<2>>(ret.size.xy()) * ret.pixelSpacing.xy()) | (static_cast<float>(sortedFiles.size()) * ret.pixelSpacing.z);
+	vec<3> dataOriginOffset = imagePositionPatient + 0.5f * spaceDimensions;
+	if(orderReversed) dataOriginOffset[2] -= spaceDimensions[2];
+	size_t i = 2;
+	
+	ret.C1Inverse = mat<4, 4>{{
+		X0 | 0.0f,
+		Y0 | 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		dataOriginOffset | 1.0f
+	}}.Inverted();
+	
+	std::cout << ret.C1Inverse << "\n";
+	
+	for(; it != sortedFiles.end(); ++it){
+		DcmFileFormat fileformat;
+		OFCondition status = fileformat.loadFile(it->string());
+		if(!status.good()){
+			std::cerr << "Error: cannot read DICOM file '" << it->string() << "': " << status.text() << "\n";
+			return {};
+		}
+		{ // rows
+			std::optional<uint16_t> rows = ReadInt_Uint16(fileformat.getDataset(), DCM_Rows);
+			if(!rows){
+				std::cerr << "Error: cannot read no. of rows from file " << it->string() << "\n";
+				return {};
+			}
+			assert(rows.value() == ret.size.y);
+		}
+		{ // columns
+			std::optional<uint16_t> cols = ReadInt_Uint16(fileformat.getDataset(), DCM_Columns);
+			if(!cols){
+				std::cerr << "Error: cannot read no. of cols from file " << it->string() << "\n";
+				return {};
+			}
+			assert(cols.value() == ret.size.x);
+		}
+		{ // pixel spacing
+			std::optional<std::vector<float>> pixelSpacing = ReadFloats_OFStringArray(fileformat.getDataset(), DCM_PixelSpacing, 2);
+			if(!pixelSpacing){
+				std::cerr << "Error: cannot read pixel spacing from file " << it->string() << "\n";
+				return {};
+			}
+			assert(ret.pixelSpacing.xy() == vec<2>({pixelSpacing.value()[1], pixelSpacing.value()[0]})); // flipping to x,y rather than y,x
+		}
+		{ // image data
+			std::unique_ptr<DicomImage> image = std::make_unique<DicomImage>(it->string().data());
+			if(!image){
+				std::cerr << "Error: image from file " << it->string() << " is loaded as NULL\n";
+				return {};
+			}
+			if(image->getStatus() != EIS_Normal){
+				std::cerr << "Error: cannot load DICOM image from file " << it->string() << ": " << DicomImage::getString(image->getStatus()) << "\n";
+				return {};
+			}
+			if(!image->isMonochrome()){
+				std::cerr << "Error: X-Ray DICOM image loaded from " << it->string() << " is not monochrome\n";
+				return {};
+			}
+			image->setMinMaxWindow();
+			assert(image->getOutputDataSize() == sliceSize);
+			if(!image->getOutputData(ret.data.data() + sliceSize * i, sliceSize, 8 * int(ret.imageDepth))){
+				std::cerr << "Error: cannot read DICOM image data from " << it->string() << "\n";
+				return {};
+			}
+		}
+		++i;
+	}
+	
+	return ret;
+}
+
 
 void PrintType(DcmDataset *dataset, const DcmTagKey &key){
 	{  const char *		value;  OFCondition readStatus = dataset->findAndGetString			(key, value); if(readStatus.good()){ std::cout << "Type const char *	 worked: " << value << "\n"; }  }

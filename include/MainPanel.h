@@ -8,17 +8,6 @@
 #include "Header.h"
 #include "Data.h"
 
-struct PCS_XRay_Vert {
-	vec<2> viewPos;
-	vec<2> xraySize;
-	vec<2> viewSize;
-	float zoom;
-};
-struct PCS_XRay_Frag {
-	float windowCentre;
-	float windowWidth;
-};
-
 class MainPanel : public wxPanel {
 public:
 	MainPanel( Frame *_frameParent, wxWindowID id, const wxPoint &pos = wxDefaultPosition, const wxSize &size = wxDefaultSize, long style = 0, const wxString &name = "PanelName");
@@ -26,6 +15,7 @@ public:
 	void DrawFrame();
 	
 	void LoadXRay(Data::XRay xRay);
+	void LoadCT(Data::CT ct);
 	
 	enum class MouseMode {WINDOWING, VIEW_POS, _COUNT_};
 	void SetMouseMode(MouseMode to){ mouseMode = to; }
@@ -42,7 +32,7 @@ private:
 	std::shared_ptr<EVK::Devices> vkDevices {};
 	std::shared_ptr<EVK::Interface> vkInterface {};
 	enum class Image {
-		XRAY, DRR, _COUNT_
+		XRAY, DRR, CT, _COUNT_
 	};
 	enum class BufferedRenderPass {
 		DRR, _COUNT_
@@ -53,12 +43,30 @@ private:
 	enum class VertexBuffer {
 		XRAY, DRR, _COUNT_
 	};
-	static constexpr VkFormat DRR_IMAGE_FORMAT = VK_FORMAT_R16_UNORM;
-	
-	struct CurrentXRay {
-		int64_t valueMax;
+	enum class UBO {
+		DRR_SHARED, DRR_VERT, DRR_FRAG, _COUNT_
 	};
-	std::optional<CurrentXRay> currentXRay {};
+	enum class Sampler {
+		MAIN, THREED, _COUNT_
+	};
+	struct PCS_XRay_Vert {
+		vec<2> viewPos;
+		vec<2> xraySize;
+		vec<2> viewSize;
+		float zoom;
+	};
+	struct PCS_XRay_Frag {
+		float windowCentre;
+		float windowWidth;
+		bool haveXRay;
+	};	
+	static constexpr VkFormat DRR_IMAGE_FORMAT = VK_FORMAT_R16_UNORM;
+	static constexpr vec<2, uint32_t> DEFAULT_DRR_SIZE = (vec<2, uint32_t>){1024, 1024};
+	
+	std::optional<Data::XRay> currentXRay {};
+	std::optional<Data::CT> currentCT {};
+	
+	void BuildDRRResources();
 	
 	PCS_XRay_Vert xRayTransform;
 	int64_t xRayWindowCentre;
@@ -82,20 +90,22 @@ private:
 	void OnMouseWheel(wxMouseEvent &event);
 	void OnMouse(wxMouseEvent &event);
 	
-	std::shared_ptr<EVK::Devices> ConstructVkDevices();
-	std::shared_ptr<EVK::Interface> ConstructVkInterface();
-	std::vector<const char*> GetRequiredExtensions();
+	void UpdateUBOs();
+	
+	void ConstructVkDevices();
+	static std::shared_ptr<EVK::Interface> ConstructVkInterface(std::shared_ptr<EVK::Devices> vkDevices);
+	static std::vector<const char*> GetRequiredExtensions();
 	WindowInfo g_window_info {};
-	VkSurfaceKHR CreateFramebufferSurface(VkInstance instance, struct WindowHandleInfo& windowInfo);
+	static VkSurfaceKHR CreateFramebufferSurface(VkInstance instance, struct WindowHandleInfo& windowInfo);
 #ifdef _WIN32
-	VkSurfaceKHR CreateWinSurface(VkInstance instance, HWND hwindow);
+	static VkSurfaceKHR CreateWinSurface(VkInstance instance, HWND hwindow);
 #endif
 #ifdef __linux__
-	VkSurfaceKHR CreateWaylandSurface(VkInstance instance, wl_display* wl_display, wl_surface* wl_surface);
-	VkSurfaceKHR CreateXlibSurface(VkInstance instance, Display* dpy, Window window);
+	static VkSurfaceKHR CreateWaylandSurface(VkInstance instance, wl_display* wl_display, wl_surface* wl_surface);
+	static VkSurfaceKHR CreateXlibSurface(VkInstance instance, Display* dpy, Window window);
 	std::unique_ptr<wxWlSubsurface> m_subsurface;
 #endif
-	void gui_initHandleContextFromWxWidgetsWindow(WindowHandleInfo &handleInfoOut, class wxWindow *wxw);
+	static void gui_initHandleContextFromWxWidgetsWindow(WindowHandleInfo &handleInfoOut, class wxWindow *wxw);
 	
 	DECLARE_EVENT_TABLE()
 };

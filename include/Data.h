@@ -11,11 +11,13 @@
 
 namespace Data {
 
-class XRay;
+struct XRay;
+struct CT;
 
 namespace DICOM {
 
 std::optional<XRay> LoadXRay(const char *filename);
+std::optional<CT> LoadCT(const char *filename);
 
 } // namespace DICOM
 
@@ -32,6 +34,16 @@ struct XRay {
 	cv::Mat ToCVMatrix(){
 		return cv::Mat(size.y, size.x, MonochromeCVFormatFromImageDepth(imageDepth), data.data());
 	}
+};
+
+struct CT {
+	vec<3, uint16_t> size;
+	vec<3> pixelSpacing;
+	mat<4, 4> C1Inverse;
+	bool leftImplantPresent;
+	bool rightImplantPresent;
+	std::vector<uint8_t> data;
+	size_t imageDepth;
 };
 
 } // namespace Data

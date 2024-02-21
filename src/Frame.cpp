@@ -99,6 +99,19 @@ void Frame::OnOpenXray(wxCommandEvent &event){
 		UpdateXRayGaussian(xRayGaussianManager.dfault);
 	}
 }
+void Frame::OnOpenCT(wxCommandEvent &event){
+	wxDirDialog openDirDialog{this, _("Open an CT DICOM file"), "", wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST};
+	
+	if (openDirDialog.ShowModal() == wxID_CANCEL)
+		return;
+	
+	ct = Data::DICOM::LoadCT(openDirDialog.GetPath());
+	if(ct){
+		controlPanel->SetCTInfo(ct.value());
+		
+		mainPanel->LoadCT(ct.value());
+	}
+}
 void Frame::UpdateXRayGaussian(float newSigma){
 	if(!xRay) return;
 	

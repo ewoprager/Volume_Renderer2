@@ -26,6 +26,8 @@ public:
 	void OnOpenXray(wxCommandEvent &event);
 	void UpdateXRayGaussian(float newSigma);
 	
+	void OnOpenCT(wxCommandEvent &event);
+	
 	const XRayGaussianManager &GetXRayGaussianManager() const { return xRayGaussianManager; }
 	
 private:
@@ -35,7 +37,8 @@ private:
 	MainPanel *mainPanel;
 	ViewPanel *viewPanel;
 	
-	std::optional<Data::XRay> xRay;
+	std::optional<Data::XRay> xRay {};
+	std::optional<Data::CT> ct {};
 	
 	//void OnResize(wxSizeEvent& event);
 	void OnCreate(wxPaintEvent &event);
