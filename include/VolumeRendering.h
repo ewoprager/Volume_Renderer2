@@ -20,6 +20,6 @@ struct FragmentShaderData {
 	float centre;
 };
 
-void CalculatePipelineData(const Data::XRay &xRay, const Data::CT &ct, const vec<2> &sourceOffset, const vec<3> &pan, const mat<4, 4> &rotationMatrix, int samplesN, float range, float centre, SharedShaderData *sharedOut, VertexShaderData *vertexOut, FragmentShaderData *fragmentOut);
+void CalculatePipelineData(const Data::XRay &xRay, const Data::CT &ct, const Data::params_t &parameters, int samplesN, float range, float centre, SharedShaderData *sharedOut, VertexShaderData *vertexOut, FragmentShaderData *fragmentOut);
 
 } // namespace VolumeRendering

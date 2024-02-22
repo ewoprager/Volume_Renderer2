@@ -17,7 +17,7 @@ public:
 	void LoadXRay(Data::XRay xRay);
 	void LoadCT(Data::CT ct);
 	
-	enum class MouseMode {WINDOWING, VIEW_POS, _COUNT_};
+	enum class MouseMode {WINDOWING, VIEW_POS, DRR_PARAMS, _COUNT_};
 	void SetMouseMode(MouseMode to){ mouseMode = to; }
 	void SetConstrainWindowing(bool value){
 		constrainXRayWindowing = value;
@@ -62,6 +62,7 @@ private:
 	};	
 	static constexpr VkFormat DRR_IMAGE_FORMAT = VK_FORMAT_R16_UNORM;
 	static constexpr vec<2, uint32_t> DEFAULT_DRR_SIZE = (vec<2, uint32_t>){1024, 1024};
+	static constexpr float ROTATION_SENSITIVITY = 0.001f;
 	
 	std::optional<Data::XRay> currentXRay {};
 	std::optional<Data::CT> currentCT {};

@@ -30,6 +30,8 @@ public:
 	
 	const XRayGaussianManager &GetXRayGaussianManager() const { return xRayGaussianManager; }
 	
+	Data::params_t &Parameters(){ return parameters; }
+	
 private:
 	wxBoxSizer *mainSizer;
 	ControlPanel *controlPanel;
@@ -39,6 +41,7 @@ private:
 	
 	std::optional<Data::XRay> xRay {};
 	std::optional<Data::CT> ct {};
+	Data::params_t parameters {0.0f, 0.0f, 0.0f, 0.0f, -131.164f, 0.0f, 0.0f, 0.0f};
 	
 	//void OnResize(wxSizeEvent& event);
 	void OnCreate(wxPaintEvent &event);

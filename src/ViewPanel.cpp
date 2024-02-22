@@ -18,7 +18,7 @@ ViewPanel::ViewPanel(Frame *_frameParent, wxWindowID id) : wxPanel(_frameParent,
 	topSizer->Add(mouseModeLabel, 1, wxALL | wxALIGN_CENTRE, UI_SPACING);
 	
 	static const std::array<wxString, int(MainPanel::MouseMode::_COUNT_)> mouseModeChoiceStrings = {{
-		"X-Ray windowing", "View position"
+		"X-Ray windowing", "View position", "DRR Parameters"
 	}};
 	mouseModeChoice = new wxChoice(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, int(MainPanel::MouseMode::_COUNT_), mouseModeChoiceStrings.data());
 	topSizer->Add(mouseModeChoice, 1, wxALL | wxALIGN_CENTRE, UI_SPACING);

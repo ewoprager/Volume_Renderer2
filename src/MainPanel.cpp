@@ -33,6 +33,8 @@
 #endif
 #endif
 
+#include <numbers>
+
 #include "Frame.h"
 #include "VolumeRendering.h"
 
@@ -185,6 +187,13 @@ void MainPanel::OnMouse(wxMouseEvent &event){
 				xRayTransform.viewPos -= delta / xRayTransform.zoom;
 				DrawFrame();
 				break;
+			case MouseMode::DRR_PARAMS:
+				frameParent->Parameters().Rotation() += ROTATION_SENSITIVITY * (vec<3>){0.0f, -delta.y, -delta.x};
+				if(frameParent->Parameters().Rotation().y > std::numbers::pi_v<float>) frameParent->Parameters().Rotation().y = std::numbers::pi_v<float>;
+				if(frameParent->Parameters().Rotation().y < -std::numbers::pi_v<float>) frameParent->Parameters().Rotation().y = -std::numbers::pi_v<float>;
+				std::cout << frameParent->Parameters() << "\n";
+				DrawFrame();
+				break;
 			default:
 				throw std::runtime_error("Unhandled mouse mode");
 				break;
@@ -200,12 +209,10 @@ void MainPanel::UpdateUBOs(){
 	if(currentCT && currentXRay){
 		VolumeRendering::CalculatePipelineData(currentXRay.value(),
 											   currentCT.value(),
-											   (vec<2>){0.0f, 0.0f},
-											   (vec<3>){0.0f, 0.0f, 0.0f},
-											   mat<4, 4>::Identity(),
-											   100,
-											   60'000.0f,
-											   30'000.0f,
+											   frameParent->Parameters(),
+											   600,
+											   0.16f,
+											   0.92f,
 											   vkInterface->GetUniformBufferObjectPointer<VolumeRendering::SharedShaderData>(int(UBO::DRR_SHARED)),
 											   vkInterface->GetUniformBufferObjectPointer<VolumeRendering::VertexShaderData>(int(UBO::DRR_VERT)),
 											   vkInterface->GetUniformBufferObjectPointer<VolumeRendering::FragmentShaderData>(int(UBO::DRR_FRAG)));
